@@ -1,17 +1,21 @@
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { tasks, projects, departments, getUser, getDepartment } from '@/data/mockData';
-import { getInitials } from '@/data/mockData';
+import { useData } from '@/contexts/DataContext';
 import { PriorityDot } from '@/components/PriorityDot';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { TaskStatus, TaskPriority } from '@/types/models';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CreateTaskDrawer } from '@/components/CreateTaskDrawer';
+import { Plus } from 'lucide-react';
 
 const TasksPage = () => {
-  const { currentUser, currentRole } = useAuth();
+  const { currentUser, currentRole, hasAccess } = useAuth();
+  const { departments, projects, tasks, getUser, getDepartment, getInitials } = useData();
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [priorityFilter, setPriorityFilter] = useState<string>('ALL');
+  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const scopedDeptIds = currentRole === 'ADMIN'
     ? departments.map(d => d.id)
@@ -27,6 +31,8 @@ const TasksPage = () => {
 
   if (statusFilter !== 'ALL') scopedTasks = scopedTasks.filter(t => t.status === statusFilter);
   if (priorityFilter !== 'ALL') scopedTasks = scopedTasks.filter(t => t.priority === priorityFilter);
+
+  const canCreateTask = hasAccess(['ADMIN', 'DEPT_HEAD', 'MANAGER', 'SUPERVISOR']);
 
   return (
     <div className="space-y-6">
@@ -58,6 +64,11 @@ const TasksPage = () => {
               ))}
             </SelectContent>
           </Select>
+          {canCreateTask && (
+            <Button size="sm" onClick={() => setDrawerOpen(true)}>
+              <Plus className="w-4 h-4 mr-1" /> New Task
+            </Button>
+          )}
         </div>
       </div>
 
@@ -90,9 +101,7 @@ const TasksPage = () => {
                 <span className="text-xs text-muted-foreground capitalize">{task.priority.toLowerCase()}</span>
                 {assignee && (
                   <Avatar className="w-6 h-6">
-                    <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">
-                      {getInitials(assignee.fullName)}
-                    </AvatarFallback>
+                    <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">{getInitials(assignee.fullName)}</AvatarFallback>
                   </Avatar>
                 )}
               </div>
@@ -100,6 +109,8 @@ const TasksPage = () => {
           })}
         </div>
       </div>
+
+      <CreateTaskDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
     </div>
   );
 };

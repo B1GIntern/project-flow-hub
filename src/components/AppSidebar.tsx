@@ -1,10 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { users, getRoleName, getInitials } from '@/data/mockData';
+import { useData } from '@/contexts/DataContext';
 import { RoleName } from '@/types/models';
 import {
   LayoutDashboard, Building2, FolderKanban, CheckSquare,
-  Users, BarChart3, Settings, ChevronDown
+  Users, BarChart3,
 } from 'lucide-react';
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue
@@ -30,11 +30,11 @@ const navItems: NavItem[] = [
 
 export const AppSidebar = () => {
   const { currentUser, setCurrentUser, currentRole } = useAuth();
+  const { users, getRoleName, getInitials } = useData();
   const location = useLocation();
 
   return (
     <aside className="w-60 h-screen flex flex-col border-r border-sidebar-border bg-sidebar flex-shrink-0">
-      {/* Logo */}
       <div className="px-4 h-14 flex items-center gap-2 border-b border-sidebar-border">
         <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
           <LayoutDashboard className="w-4 h-4 text-primary-foreground" />
@@ -42,7 +42,6 @@ export const AppSidebar = () => {
         <span className="font-semibold text-sm text-sidebar-foreground">Apex Tracker</span>
       </div>
 
-      {/* Role Switcher */}
       <div className="px-3 py-3">
         <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5 block">
           Switch User
@@ -69,7 +68,6 @@ export const AppSidebar = () => {
 
       <Separator />
 
-      {/* Navigation */}
       <nav className="flex-1 px-2 py-2 space-y-0.5 overflow-y-auto">
         {navItems
           .filter(item => item.roles.includes(currentRole))
@@ -92,7 +90,6 @@ export const AppSidebar = () => {
           })}
       </nav>
 
-      {/* User Footer */}
       <div className="px-3 py-3 border-t border-sidebar-border">
         <div className="flex items-center gap-2.5">
           <Avatar className="w-8 h-8">

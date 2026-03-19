@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { users, departments, kpis, getDepartment, getUser, getInitials, getRoleName } from '@/data/mockData';
+import { useData } from '@/contexts/DataContext';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { KPIBadge } from '@/components/KPIBadge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -7,6 +7,7 @@ import { useState } from 'react';
 
 const KPIsPage = () => {
   const { currentUser, currentRole } = useAuth();
+  const { departments, users, kpis, getDepartment, getInitials } = useData();
   const [selectedMonth, setSelectedMonth] = useState('10');
 
   const scopedDeptIds = currentRole === 'ADMIN'
@@ -36,7 +37,6 @@ const KPIsPage = () => {
         </Select>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-3 gap-4">
         {(() => {
           const relevantKpis = monthKpis.filter(k => scopedUsers.some(u => u.id === k.userId));
@@ -66,7 +66,6 @@ const KPIsPage = () => {
         })()}
       </div>
 
-      {/* Table */}
       <div className="surface-card">
         <div className="grid grid-cols-[1fr_120px_100px_100px_80px] px-4 py-2 border-b border-border">
           <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Employee</span>
@@ -83,9 +82,7 @@ const KPIsPage = () => {
               <div key={user.id} className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-3 hover:bg-accent transition-colors">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <Avatar className="w-8 h-8">
-                    <AvatarFallback className="text-xs bg-muted text-muted-foreground">
-                      {getInitials(user.fullName)}
-                    </AvatarFallback>
+                    <AvatarFallback className="text-xs bg-muted text-muted-foreground">{getInitials(user.fullName)}</AvatarFallback>
                   </Avatar>
                   <span className="text-sm font-medium truncate">{user.fullName}</span>
                 </div>
