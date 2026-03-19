@@ -1,13 +1,25 @@
-import { users, departments, getRoleName, getDepartment, getUser, getInitials } from '@/data/mockData';
+import { useState } from 'react';
+import { useData } from '@/contexts/DataContext';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
+import { CreateUserDrawer } from '@/components/CreateUserDrawer';
 
 const UsersPage = () => {
+  const { users, getDepartment, getUser, getRoleName, getInitials } = useData();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-xl font-semibold">User Directory</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">{users.length} users</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold">User Directory</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{users.length} users</p>
+        </div>
+        <Button size="sm" onClick={() => setDrawerOpen(true)}>
+          <Plus className="w-4 h-4 mr-1" /> New User
+        </Button>
       </div>
 
       <div className="surface-card">
@@ -26,9 +38,7 @@ const UsersPage = () => {
               <div key={user.id} className="grid grid-cols-[1fr_120px_140px_140px] items-center px-4 py-3 hover:bg-accent transition-colors">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <Avatar className="w-8 h-8">
-                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                      {getInitials(user.fullName)}
-                    </AvatarFallback>
+                    <AvatarFallback className="text-xs bg-primary text-primary-foreground">{getInitials(user.fullName)}</AvatarFallback>
                   </Avatar>
                   <div className="min-w-0">
                     <p className="text-sm font-medium truncate">{user.fullName}</p>
@@ -43,6 +53,8 @@ const UsersPage = () => {
           })}
         </div>
       </div>
+
+      <CreateUserDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
     </div>
   );
 };

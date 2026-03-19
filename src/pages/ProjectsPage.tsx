@@ -1,5 +1,5 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { projects, departments, tasks, getDepartment } from '@/data/mockData';
+import { useData } from '@/contexts/DataContext';
 import { ProjectStatus } from '@/types/models';
 import { FolderKanban } from 'lucide-react';
 
@@ -12,6 +12,7 @@ const statusStyle: Record<ProjectStatus, string> = {
 
 const ProjectsPage = () => {
   const { currentUser, currentRole } = useAuth();
+  const { departments, projects, tasks, getDepartment } = useData();
 
   const scopedDeptIds = currentRole === 'ADMIN'
     ? departments.map(d => d.id)
@@ -48,9 +49,7 @@ const ProjectsPage = () => {
                 </div>
                 <span className="text-xs text-muted-foreground">{dept?.name}</span>
                 <span className={`status-badge w-fit ${statusStyle[project.status]}`}>{project.status.replace('_', ' ')}</span>
-                <span className="text-xs font-mono tabular-nums text-muted-foreground text-right">
-                  {doneTasks.length}/{projectTasks.length}
-                </span>
+                <span className="text-xs font-mono tabular-nums text-muted-foreground text-right">{doneTasks.length}/{projectTasks.length}</span>
               </div>
             );
           })}
