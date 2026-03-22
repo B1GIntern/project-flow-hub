@@ -1,8 +1,8 @@
-export type RoleName = 'ADMIN' | 'DEPT_HEAD' | 'MANAGER' | 'SUPERVISOR' | 'EMPLOYEE';
+export type RoleName = 'ADMIN' | 'DEPT_HEAD' | 'MANAGER' | 'SUPERVISOR' | 'EMPLOYEE' | string;
 
 export interface Role {
   id: number;
-  name: RoleName;
+  name: string;
 }
 
 export interface Department {
@@ -16,6 +16,7 @@ export interface User {
   id: number;
   fullName: string;
   email: string;
+  password: string;
   roleId: number;
   managerId: number | null;
   departmentId: number | null;

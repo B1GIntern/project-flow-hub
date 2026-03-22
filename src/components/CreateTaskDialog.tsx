@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,12 +9,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TaskPriority, TaskStatus } from '@/types/models';
 
-interface CreateTaskDrawerProps {
+interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultProjectId?: number;
 }
 
-export const CreateTaskDrawer = ({ open, onOpenChange }: CreateTaskDrawerProps) => {
+export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: CreateTaskDialogProps) => {
   const { addTask, projects, users, departments } = useData();
   const { currentUser, currentRole } = useAuth();
 
@@ -26,14 +27,16 @@ export const CreateTaskDrawer = ({ open, onOpenChange }: CreateTaskDrawerProps) 
   const [status, setStatus] = useState<TaskStatus>('TODO');
   const [dueDate, setDueDate] = useState('');
 
-  // Scope projects based on role
+  useEffect(() => {
+    if (open && defaultProjectId) setProjectId(String(defaultProjectId));
+  }, [open, defaultProjectId]);
+
   const scopedDeptIds = currentRole === 'ADMIN'
     ? departments.map(d => d.id)
-    : currentUser.departmentId ? [currentUser.departmentId] : [];
+    : currentUser!.departmentId ? [currentUser!.departmentId] : [];
 
   const scopedProjects = projects.filter(p => scopedDeptIds.includes(p.departmentId));
 
-  // Scope assignable users based on selected project's department
   const selectedProject = projects.find(p => p.id === Number(projectId));
   const assignableUsers = selectedProject
     ? users.filter(u => u.departmentId === selectedProject.departmentId)
@@ -48,27 +51,23 @@ export const CreateTaskDrawer = ({ open, onOpenChange }: CreateTaskDrawerProps) 
     e.preventDefault();
     if (!title || !projectId || !assignedTo || !dueDate) return;
     addTask({
-      title,
-      description,
+      title, description,
       projectId: Number(projectId),
       assignedTo: Number(assignedTo),
-      createdBy: currentUser.id,
-      priority,
-      status,
-      dueDate,
-      completedAt: null,
+      createdBy: currentUser!.id,
+      priority, status, dueDate, completedAt: null,
     });
     reset();
     onOpenChange(false);
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md overflow-y-auto">
-        <SheetHeader>
-          <SheetTitle>Create Task</SheetTitle>
-        </SheetHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Create Task</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-2">
             <Label className="text-xs">Title</Label>
             <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Task title" />
@@ -127,12 +126,12 @@ export const CreateTaskDrawer = ({ open, onOpenChange }: CreateTaskDrawerProps) 
             <Label className="text-xs">Due Date</Label>
             <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
           </div>
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-2 pt-2">
             <Button type="submit" className="flex-1">Create Task</Button>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           </div>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 };

@@ -13,8 +13,8 @@ const KPIsPage = () => {
   const scopedDeptIds = currentRole === 'ADMIN'
     ? departments.map(d => d.id)
     : currentRole === 'DEPT_HEAD'
-      ? departments.filter(d => d.deptHeadId === currentUser.id).map(d => d.id)
-      : currentUser.departmentId ? [currentUser.departmentId] : [];
+      ? departments.filter(d => d.deptHeadId === currentUser!.id).map(d => d.id)
+      : currentUser!.departmentId ? [currentUser!.departmentId] : [];
 
   const scopedUsers = users.filter(u => scopedDeptIds.includes(u.departmentId ?? -1) && u.roleId === 5);
   const monthKpis = kpis.filter(k => k.periodMonth === Number(selectedMonth));

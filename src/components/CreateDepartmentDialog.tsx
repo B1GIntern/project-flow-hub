@@ -1,21 +1,22 @@
 import { useState } from 'react';
 import { useData } from '@/contexts/DataContext';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-interface CreateDepartmentDrawerProps {
+interface CreateDepartmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export const CreateDepartmentDrawer = ({ open, onOpenChange }: CreateDepartmentDrawerProps) => {
+export const CreateDepartmentDialog = ({ open, onOpenChange }: CreateDepartmentDialogProps) => {
   const { addDepartment, users } = useData();
   const [name, setName] = useState('');
   const [deptHeadId, setDeptHeadId] = useState('');
 
+  // Any user with DEPT_HEAD role can head multiple departments
   const deptHeadCandidates = users.filter(u => u.roleId === 2);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -30,12 +31,12 @@ export const CreateDepartmentDrawer = ({ open, onOpenChange }: CreateDepartmentD
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>Create Department</SheetTitle>
-        </SheetHeader>
-        <form onSubmit={handleSubmit} className="space-y-4 mt-6">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Create Department</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-2">
             <Label className="text-xs">Department Name</Label>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Finance" />
@@ -51,13 +52,14 @@ export const CreateDepartmentDrawer = ({ open, onOpenChange }: CreateDepartmentD
                 ))}
               </SelectContent>
             </Select>
+            <p className="text-[11px] text-muted-foreground">A user can be department head of multiple departments</p>
           </div>
-          <div className="flex gap-2 pt-4">
+          <div className="flex gap-2 pt-2">
             <Button type="submit" className="flex-1">Create Department</Button>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           </div>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 };
