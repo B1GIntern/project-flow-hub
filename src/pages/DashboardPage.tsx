@@ -23,8 +23,8 @@ const DashboardPage = () => {
   const scopedDepartments = currentRole === 'ADMIN'
     ? departments
     : currentRole === 'DEPT_HEAD'
-      ? departments.filter(d => d.deptHeadId === currentUser.id)
-      : currentUser.departmentId
+      ? departments.filter(d => d.deptHeadId === currentUser!.id)
+      : currentUser!.departmentId
         ? departments.filter(d => d.id === currentUser.departmentId)
         : [];
 
