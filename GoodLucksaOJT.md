@@ -371,6 +371,7 @@ RATE_LIMIT_MAX=100
 SUPABASE_URL=https://gprlkjsbxqpawcqpssgx.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdwcmxranNieHFwYXdjcXBzc2d4Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NDE1NDA2NSwiZXhwIjoyMDg5NzMwMDY1fQ.o0nbb0HFie8RmXVUCSYnVbSUfkbnncd61JiwLiv4vX4
 
+#Frontend .ENV
 .env frontend
 VITE_API_URL=http://localhost:3000
 VITE_SUPABASE_URL=https://gprlkjsbxqpawcqpssgx.supabase.co
