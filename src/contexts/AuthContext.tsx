@@ -1,24 +1,43 @@
 import React, { createContext, useContext, useState } from 'react';
 import { User, RoleName } from '@/types/models';
-import { users, getRoleName } from '@/data/mockData';
+import { useData } from '@/contexts/DataContext';
 
 interface AuthContextType {
-  currentUser: User;
+  currentUser: User | null;
   setCurrentUser: (user: User) => void;
-  currentRole: RoleName;
-  hasAccess: (allowedRoles: RoleName[]) => boolean;
+  currentRole: string;
+  hasAccess: (allowedRoles: string[]) => boolean;
+  login: (email: string, password: string) => boolean;
+  logout: () => void;
+  isAuthenticated: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User>(users[0]); // Default: Admin
-  const currentRole = getRoleName(currentUser.roleId) as RoleName;
+  const { users, getRoleName } = useData();
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
 
-  const hasAccess = (allowedRoles: RoleName[]) => allowedRoles.includes(currentRole);
+  const currentRole = currentUser ? getRoleName(currentUser.roleId) : '';
+  const isAuthenticated = currentUser !== null;
+
+  const hasAccess = (allowedRoles: string[]) => allowedRoles.includes(currentRole);
+
+  const login = (email: string, password: string): boolean => {
+    const user = users.find(u => u.email === email && u.password === password);
+    if (user) {
+      setCurrentUser(user);
+      return true;
+    }
+    return false;
+  };
+
+  const logout = () => {
+    setCurrentUser(null);
+  };
 
   return (
-    <AuthContext.Provider value={{ currentUser, setCurrentUser, currentRole, hasAccess }}>
+    <AuthContext.Provider value={{ currentUser, setCurrentUser, currentRole, hasAccess, login, logout, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   );

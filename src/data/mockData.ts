@@ -15,25 +15,21 @@ export const departments: Department[] = [
 ];
 
 export const users: User[] = [
-  // Admin
-  { id: 1, fullName: 'Sarah Chen', email: 'sarah.admin@corp.com', roleId: 1, managerId: null, departmentId: null },
-  // Engineering
-  { id: 2, fullName: 'Marcus Wright', email: 'marcus.head@corp.com', roleId: 2, managerId: null, departmentId: 1 },
-  { id: 3, fullName: 'Elena Rodriguez', email: 'elena.mgr@corp.com', roleId: 3, managerId: 2, departmentId: 1 },
-  { id: 4, fullName: 'David Park', email: 'david.sup@corp.com', roleId: 4, managerId: 3, departmentId: 1 },
-  { id: 5, fullName: 'Alex Rivera', email: 'alex.emp@corp.com', roleId: 5, managerId: 4, departmentId: 1 },
-  // Marketing
-  { id: 6, fullName: 'Jessica Liu', email: 'jessica.head@corp.com', roleId: 2, managerId: null, departmentId: 2 },
-  { id: 7, fullName: 'Tom Bradley', email: 'tom.mgr@corp.com', roleId: 3, managerId: 6, departmentId: 2 },
-  { id: 8, fullName: 'Nina Patel', email: 'nina.sup@corp.com', roleId: 4, managerId: 7, departmentId: 2 },
-  { id: 9, fullName: 'Carlos Mendez', email: 'carlos.emp@corp.com', roleId: 5, managerId: 8, departmentId: 2 },
-  // Operations
-  { id: 10, fullName: 'Robert Kim', email: 'robert.head@corp.com', roleId: 2, managerId: null, departmentId: 3 },
-  { id: 11, fullName: 'Amanda Foster', email: 'amanda.mgr@corp.com', roleId: 3, managerId: 10, departmentId: 3 },
-  { id: 12, fullName: 'James Wilson', email: 'james.sup@corp.com', roleId: 4, managerId: 11, departmentId: 3 },
-  { id: 13, fullName: 'Priya Sharma', email: 'priya.emp@corp.com', roleId: 5, managerId: 12, departmentId: 3 },
-  { id: 14, fullName: 'Mike Johnson', email: 'mike.emp@corp.com', roleId: 5, managerId: 4, departmentId: 1 },
-  { id: 15, fullName: 'Lisa Wang', email: 'lisa.emp@corp.com', roleId: 5, managerId: 8, departmentId: 2 },
+  { id: 1, fullName: 'Sarah Chen', email: 'sarah.admin@corp.com', password: 'admin123!', roleId: 1, managerId: null, departmentId: null },
+  { id: 2, fullName: 'Marcus Wright', email: 'marcus.head@corp.com', password: 'tempPassword123!', roleId: 2, managerId: null, departmentId: 1 },
+  { id: 3, fullName: 'Elena Rodriguez', email: 'elena.mgr@corp.com', password: 'tempPassword123!', roleId: 3, managerId: 2, departmentId: 1 },
+  { id: 4, fullName: 'David Park', email: 'david.sup@corp.com', password: 'tempPassword123!', roleId: 4, managerId: 3, departmentId: 1 },
+  { id: 5, fullName: 'Alex Rivera', email: 'alex.emp@corp.com', password: 'tempPassword123!', roleId: 5, managerId: 4, departmentId: 1 },
+  { id: 6, fullName: 'Jessica Liu', email: 'jessica.head@corp.com', password: 'tempPassword123!', roleId: 2, managerId: null, departmentId: 2 },
+  { id: 7, fullName: 'Tom Bradley', email: 'tom.mgr@corp.com', password: 'tempPassword123!', roleId: 3, managerId: 6, departmentId: 2 },
+  { id: 8, fullName: 'Nina Patel', email: 'nina.sup@corp.com', password: 'tempPassword123!', roleId: 4, managerId: 7, departmentId: 2 },
+  { id: 9, fullName: 'Carlos Mendez', email: 'carlos.emp@corp.com', password: 'tempPassword123!', roleId: 5, managerId: 8, departmentId: 2 },
+  { id: 10, fullName: 'Robert Kim', email: 'robert.head@corp.com', password: 'tempPassword123!', roleId: 2, managerId: null, departmentId: 3 },
+  { id: 11, fullName: 'Amanda Foster', email: 'amanda.mgr@corp.com', password: 'tempPassword123!', roleId: 3, managerId: 10, departmentId: 3 },
+  { id: 12, fullName: 'James Wilson', email: 'james.sup@corp.com', password: 'tempPassword123!', roleId: 4, managerId: 11, departmentId: 3 },
+  { id: 13, fullName: 'Priya Sharma', email: 'priya.emp@corp.com', password: 'tempPassword123!', roleId: 5, managerId: 12, departmentId: 3 },
+  { id: 14, fullName: 'Mike Johnson', email: 'mike.emp@corp.com', password: 'tempPassword123!', roleId: 5, managerId: 4, departmentId: 1 },
+  { id: 15, fullName: 'Lisa Wang', email: 'lisa.emp@corp.com', password: 'tempPassword123!', roleId: 5, managerId: 8, departmentId: 2 },
 ];
 
 export const projects: Project[] = [
@@ -78,7 +74,6 @@ export const kpis: KPI[] = [
   { id: 10, userId: 15, periodMonth: 9, periodYear: 2024, tasksCompleted: 5, onTimePercentage: 55.0, managerRating: 2.8 },
 ];
 
-// Helper functions
 export const getRoleName = (roleId: number): string => roles.find(r => r.id === roleId)?.name ?? 'UNKNOWN';
 export const getUserRole = (user: User) => roles.find(r => r.id === user.roleId);
 export const getDepartment = (id: number) => departments.find(d => d.id === id);

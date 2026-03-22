@@ -3,18 +3,41 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { DataProvider } from "@/contexts/DataContext";
 import { AppLayout } from "@/components/AppLayout";
+import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import DepartmentsPage from "./pages/DepartmentsPage";
 import ProjectsPage from "./pages/ProjectsPage";
-import TasksPage from "./pages/TasksPage";
 import UsersPage from "./pages/UsersPage";
+import RolesPage from "./pages/RolesPage";
 import KPIsPage from "./pages/KPIsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
+
+const AuthenticatedRoutes = () => {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  return (
+    <AppLayout>
+      <Routes>
+        <Route path="/" element={<DashboardPage />} />
+        <Route path="/departments" element={<DepartmentsPage />} />
+        <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/users" element={<UsersPage />} />
+        <Route path="/roles" element={<RolesPage />} />
+        <Route path="/kpis" element={<KPIsPage />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </AppLayout>
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -24,17 +47,7 @@ const App = () => (
       <BrowserRouter>
         <DataProvider>
           <AuthProvider>
-            <AppLayout>
-              <Routes>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/departments" element={<DepartmentsPage />} />
-                <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/tasks" element={<TasksPage />} />
-                <Route path="/users" element={<UsersPage />} />
-                <Route path="/kpis" element={<KPIsPage />} />
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </AppLayout>
+            <AuthenticatedRoutes />
           </AuthProvider>
         </DataProvider>
       </BrowserRouter>

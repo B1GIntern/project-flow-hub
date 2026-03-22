@@ -1,37 +1,36 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useData } from '@/contexts/DataContext';
-import { RoleName } from '@/types/models';
 import {
-  LayoutDashboard, Building2, FolderKanban, CheckSquare,
-  Users, BarChart3,
+  LayoutDashboard, Building2, FolderKanban,
+  Users, BarChart3, Shield, LogOut,
 } from 'lucide-react';
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue
-} from '@/components/ui/select';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 
 interface NavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
-  roles: RoleName[];
+  roles: string[];
 }
 
 const navItems: NavItem[] = [
   { label: 'Dashboard', path: '/', icon: <LayoutDashboard className="w-4 h-4" />, roles: ['ADMIN', 'DEPT_HEAD', 'MANAGER', 'SUPERVISOR', 'EMPLOYEE'] },
   { label: 'Departments', path: '/departments', icon: <Building2 className="w-4 h-4" />, roles: ['ADMIN', 'DEPT_HEAD', 'MANAGER'] },
-  { label: 'Projects', path: '/projects', icon: <FolderKanban className="w-4 h-4" />, roles: ['ADMIN', 'DEPT_HEAD', 'MANAGER', 'SUPERVISOR'] },
-  { label: 'Tasks', path: '/tasks', icon: <CheckSquare className="w-4 h-4" />, roles: ['ADMIN', 'DEPT_HEAD', 'MANAGER', 'SUPERVISOR', 'EMPLOYEE'] },
+  { label: 'Projects', path: '/projects', icon: <FolderKanban className="w-4 h-4" />, roles: ['ADMIN', 'DEPT_HEAD', 'MANAGER', 'SUPERVISOR', 'EMPLOYEE'] },
   { label: 'Users', path: '/users', icon: <Users className="w-4 h-4" />, roles: ['ADMIN'] },
+  { label: 'Roles', path: '/roles', icon: <Shield className="w-4 h-4" />, roles: ['ADMIN'] },
   { label: 'KPIs', path: '/kpis', icon: <BarChart3 className="w-4 h-4" />, roles: ['ADMIN', 'DEPT_HEAD', 'MANAGER', 'SUPERVISOR'] },
 ];
 
 export const AppSidebar = () => {
-  const { currentUser, setCurrentUser, currentRole } = useAuth();
-  const { users, getRoleName, getInitials } = useData();
+  const { currentUser, currentRole, logout } = useAuth();
+  const { getInitials } = useData();
   const location = useLocation();
+
+  if (!currentUser) return null;
 
   return (
     <aside className="w-60 h-screen flex flex-col border-r border-sidebar-border bg-sidebar flex-shrink-0">
@@ -40,30 +39,6 @@ export const AppSidebar = () => {
           <LayoutDashboard className="w-4 h-4 text-primary-foreground" />
         </div>
         <span className="font-semibold text-sm text-sidebar-foreground">Apex Tracker</span>
-      </div>
-
-      <div className="px-3 py-3">
-        <label className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider px-1 mb-1.5 block">
-          Switch User
-        </label>
-        <Select
-          value={String(currentUser.id)}
-          onValueChange={(val) => {
-            const u = users.find(u => u.id === Number(val));
-            if (u) setCurrentUser(u);
-          }}
-        >
-          <SelectTrigger className="h-9 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {users.map(u => (
-              <SelectItem key={u.id} value={String(u.id)} className="text-xs">
-                {u.fullName} · {getRoleName(u.roleId)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       </div>
 
       <Separator />
@@ -101,6 +76,9 @@ export const AppSidebar = () => {
             <p className="text-sm font-medium text-sidebar-foreground truncate">{currentUser.fullName}</p>
             <p className="text-[11px] text-muted-foreground">{currentRole}</p>
           </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={logout}>
+            <LogOut className="w-4 h-4" />
+          </Button>
         </div>
       </div>
     </aside>

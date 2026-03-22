@@ -4,18 +4,18 @@ import { useData } from '@/contexts/DataContext';
 import { Building2, Plus } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { CreateDepartmentDrawer } from '@/components/CreateDepartmentDrawer';
+import { CreateDepartmentDialog } from '@/components/CreateDepartmentDialog';
 
 const DepartmentsPage = () => {
   const { currentUser, currentRole, hasAccess } = useAuth();
   const { departments, getUser, getUsersByDepartment, getProjectsByDepartment, getInitials } = useData();
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const scopedDepts = currentRole === 'ADMIN'
     ? departments
     : currentRole === 'DEPT_HEAD'
-      ? departments.filter(d => d.deptHeadId === currentUser.id)
-      : departments.filter(d => d.id === currentUser.departmentId);
+      ? departments.filter(d => d.deptHeadId === currentUser!.id)
+      : departments.filter(d => d.id === currentUser!.departmentId);
 
   return (
     <div className="space-y-6">
@@ -25,7 +25,7 @@ const DepartmentsPage = () => {
           <p className="text-sm text-muted-foreground mt-0.5">{scopedDepts.length} departments</p>
         </div>
         {hasAccess(['ADMIN']) && (
-          <Button size="sm" onClick={() => setDrawerOpen(true)}>
+          <Button size="sm" onClick={() => setDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-1" /> New Department
           </Button>
         )}
@@ -74,7 +74,7 @@ const DepartmentsPage = () => {
         })}
       </div>
 
-      <CreateDepartmentDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
+      <CreateDepartmentDialog open={dialogOpen} onOpenChange={setDialogOpen} />
     </div>
   );
 };
