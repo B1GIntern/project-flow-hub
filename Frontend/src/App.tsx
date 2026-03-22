@@ -18,8 +18,15 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const AuthenticatedRoutes = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
   if (!isAuthenticated) {
     return <LoginPage />;
   }
