@@ -33,7 +33,7 @@ const DashboardPage = () => {
   const scopedProjectIds = scopedProjects.map(p => p.id);
 
   const scopedTasks = currentRole === 'EMPLOYEE'
-    ? tasks.filter(t => t.assignedTo === currentUser.id)
+    ? tasks.filter(t => t.assignedTo === currentUser!.id)
     : tasks.filter(t => scopedProjectIds.includes(t.projectId));
 
   const scopedUsers = currentRole === 'ADMIN'
