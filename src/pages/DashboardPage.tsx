@@ -135,7 +135,7 @@ const DashboardPage = () => {
               <h2 className="text-sm font-semibold">My Performance</h2>
             </div>
             <div className="p-4 space-y-3">
-              {kpis.filter(k => k.userId === currentUser.id).sort((a, b) => b.periodMonth - a.periodMonth).map(kpi => (
+              {kpis.filter(k => k.userId === currentUser!.id).sort((a, b) => b.periodMonth - a.periodMonth).map(kpi => (
                 <div key={kpi.id} className="flex items-center justify-between py-2">
                   <span className="text-sm text-muted-foreground">
                     {new Date(kpi.periodYear, kpi.periodMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
