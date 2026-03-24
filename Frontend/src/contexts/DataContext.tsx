@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiFetch } from '@/lib/api';
 import { User, Department, Project, Task, KPI, Role } from '@/types/models';
 import {
   roles as seedRoles,
@@ -16,94 +18,182 @@ interface DataContextType {
   projects: Project[];
   tasks: Task[];
   kpis: KPI[];
-  addUser: (user: Omit<User, 'id'>) => void;
-  updateUser: (id: number, updates: Partial<User>) => void;
-  deleteUser: (id: number) => void;
+  addUser: (user: Omit<User, 'id'>) => Promise<void>;
+  updateUser: (id: string, updates: Partial<User>) => void;
+  deleteUser: (id: string) => void;
   addDepartment: (dept: Omit<Department, 'id' | 'createdAt'>) => void;
-  updateDepartment: (id: number, updates: Partial<Department>) => void;
-  deleteDepartment: (id: number) => void;
+  updateDepartment: (id: string, updates: Partial<Department>) => void;
+  deleteDepartment: (id: string) => void;
   addProject: (project: Omit<Project, 'id'>) => void;
   addTask: (task: Omit<Task, 'id'>) => void;
-  updateTask: (id: number, updates: Partial<Task>) => void;
-  deleteTask: (id: number) => void;
+  updateTask: (id: string, updates: Partial<Task>) => void;
+  deleteTask: (id: string) => void;
   addRole: (role: Omit<Role, 'id'>) => void;
-  updateRole: (id: number, updates: Partial<Role>) => void;
-  deleteRole: (id: number) => void;
-  getUser: (id: number) => User | undefined;
-  getDepartment: (id: number) => Department | undefined;
-  getRoleName: (roleId: number) => string;
+  updateRole: (id: string, updates: Partial<Role>) => void;
+  deleteRole: (id: string) => void;
+  getUser: (id: string) => User | undefined;
+  getDepartment: (id: string) => Department | undefined;
+  getRoleName: (roleId: string) => string;
   getInitials: (name: string) => string;
-  getUsersByDepartment: (deptId: number) => User[];
-  getProjectsByDepartment: (deptId: number) => Project[];
-  getTasksByProject: (projectId: number) => Task[];
-  getTasksByUser: (userId: number) => Task[];
+  getUsersByDepartment: (deptId: string) => User[];
+  getProjectsByDepartment: (deptId: string) => Project[];
+  getTasksByProject: (projectId: string) => Task[];
+  getTasksByUser: (userId: string) => Task[];
 }
 
 const DataContext = createContext<DataContextType | null>(null);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { getAccessToken } = useAuth();
+
   const [roles, setRoles] = useState<Role[]>([...seedRoles]);
   const [departments, setDepartments] = useState<Department[]>([...seedDepartments]);
-  const [users, setUsers] = useState<User[]>([...seedUsers]);
-  const [projects, setProjects] = useState<Project[]>([...seedProjects]);
-  const [tasks, setTasks] = useState<Task[]>([...seedTasks]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [kpis] = useState<KPI[]>([...seedKpis]);
 
-  const addUser = useCallback((user: Omit<User, 'id'>) => {
-    setUsers(prev => [...prev, { ...user, id: Math.max(...prev.map(u => u.id)) + 1 }]);
+  // Fetch real data on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Fetch roles (public endpoint)
+        const rolesRes = await apiFetch('/roles');
+        if (rolesRes.ok) {
+          const rolesData = await rolesRes.json();
+          setRoles(rolesData);
+        }
+
+        // Fetch departments (public endpoint)
+        const deptRes = await apiFetch('/departments');
+        if (deptRes.ok) {
+          const deptData = await deptRes.json();
+          setDepartments(deptData);
+        }
+
+        // Fetch users (requires authentication)
+        const usersRes = await apiFetch('/users', { getAccessToken });
+        if (usersRes.ok) {
+          const usersData = await usersRes.json();
+          setUsers(usersData);
+        }
+
+        // Fetch projects (requires authentication)
+        const projectsRes = await apiFetch('/projects', { getAccessToken });
+        if (projectsRes.ok) {
+          const projectsData = await projectsRes.json();
+          setProjects(projectsData);
+        }
+
+        // Fetch tasks (requires authentication)
+        const tasksRes = await apiFetch('/tasks', { getAccessToken });
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json();
+          setTasks(tasksData);
+        }
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      }
+    };
+
+    fetchData();
+  }, [getAccessToken]);
+
+  // Only addUser hits the real API — everything else stays as mock
+  const addUser = useCallback(async (user: Omit<User, 'id'>) => {
+    try {
+      console.log('Creating user:', user);
+      
+      const res = await apiFetch('/users/register', {
+        method: 'POST',
+        // Don't pass getAccessToken for public endpoint
+        body: JSON.stringify({
+          fullName: user.fullName,
+          email: user.email,
+          password: 'tempPassword123!',
+          roleId: user.roleId,
+          departmentId: user.departmentId,
+          managerId: user.managerId,
+        }),
+      });
+
+      console.log('Response status:', res.status);
+      
+      if (res.ok) {
+        const newUser = await res.json();
+        console.log('User created successfully:', newUser);
+        // Add real DB user into local state alongside mock users
+        setUsers(prev => [...prev, newUser]);
+      } else {
+        const err = await res.json();
+        console.error('Failed to create user:', err);
+        alert(`Failed to create user: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to create user:', err);
+      alert('Failed to create user: Network error');
+    }
   }, []);
-  const updateUser = useCallback((id: number, updates: Partial<User>) => {
+
+  const updateUser = useCallback((id: string, updates: Partial<User>) => {
     setUsers(prev => prev.map(u => (u.id === id ? { ...u, ...updates } : u)));
   }, []);
-  const deleteUser = useCallback((id: number) => {
+
+  const deleteUser = useCallback((id: string) => {
     setUsers(prev => prev.filter(u => u.id !== id));
   }, []);
 
   const addDepartment = useCallback((dept: Omit<Department, 'id' | 'createdAt'>) => {
     setDepartments(prev => [
       ...prev,
-      { ...dept, id: Math.max(...prev.map(d => d.id)) + 1, createdAt: new Date().toISOString() },
+      { ...dept, id: crypto.randomUUID(), createdAt: new Date().toISOString() },
     ]);
   }, []);
-  const updateDepartment = useCallback((id: number, updates: Partial<Department>) => {
+
+  const updateDepartment = useCallback((id: string, updates: Partial<Department>) => {
     setDepartments(prev => prev.map(d => (d.id === id ? { ...d, ...updates } : d)));
   }, []);
-  const deleteDepartment = useCallback((id: number) => {
+
+  const deleteDepartment = useCallback((id: string) => {
     setDepartments(prev => prev.filter(d => d.id !== id));
   }, []);
 
   const addProject = useCallback((project: Omit<Project, 'id'>) => {
-    setProjects(prev => [...prev, { ...project, id: Math.max(...prev.map(p => p.id)) + 1 }]);
+    setProjects(prev => [...prev, { ...project, id: crypto.randomUUID() }]);
   }, []);
 
   const addTask = useCallback((task: Omit<Task, 'id'>) => {
-    setTasks(prev => [...prev, { ...task, id: Math.max(...prev.map(t => t.id)) + 1 }]);
+    setTasks(prev => [...prev, { ...task, id: crypto.randomUUID() }]);
   }, []);
-  const updateTask = useCallback((id: number, updates: Partial<Task>) => {
+
+  const updateTask = useCallback((id: string, updates: Partial<Task>) => {
     setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
   }, []);
-  const deleteTask = useCallback((id: number) => {
+
+  const deleteTask = useCallback((id: string) => {
     setTasks(prev => prev.filter(t => t.id !== id));
   }, []);
 
   const addRole = useCallback((role: Omit<Role, 'id'>) => {
-    setRoles(prev => [...prev, { ...role, id: Math.max(...prev.map(r => r.id)) + 1 }]);
+    setRoles(prev => [...prev, { ...role, id: crypto.randomUUID() }]);
   }, []);
-  const updateRole = useCallback((id: number, updates: Partial<Role>) => {
+
+  const updateRole = useCallback((id: string, updates: Partial<Role>) => {
     setRoles(prev => prev.map(r => (r.id === id ? { ...r, ...updates } : r)));
   }, []);
-  const deleteRole = useCallback((id: number) => {
+
+  const deleteRole = useCallback((id: string) => {
     setRoles(prev => prev.filter(r => r.id !== id));
   }, []);
 
-  const getUser = useCallback((id: number) => users.find(u => u.id === id), [users]);
-  const getDepartment = useCallback((id: number) => departments.find(d => d.id === id), [departments]);
-  const getRoleName = useCallback((roleId: number) => roles.find(r => r.id === roleId)?.name ?? 'UNKNOWN', [roles]);
+  const getUser = useCallback((id: string) => users.find(u => u.id === id), [users]);
+  const getDepartment = useCallback((id: string) => departments.find(d => d.id === id), [departments]);
+  const getRoleName = useCallback((roleId: string) => roles.find(r => r.id === roleId)?.name ?? 'UNKNOWN', [roles]);
   const getInitials = useCallback((name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase(), []);
-  const getUsersByDepartment = useCallback((deptId: number) => users.filter(u => u.departmentId === deptId), [users]);
-  const getProjectsByDepartment = useCallback((deptId: number) => projects.filter(p => p.departmentId === deptId), [projects]);
-  const getTasksByProject = useCallback((projectId: number) => tasks.filter(t => t.projectId === projectId), [tasks]);
-  const getTasksByUser = useCallback((userId: number) => tasks.filter(t => t.assignedTo === userId), [tasks]);
+  const getUsersByDepartment = useCallback((deptId: string) => users.filter(u => u.departmentId === deptId), [users]);
+  const getProjectsByDepartment = useCallback((deptId: string) => projects.filter(p => p.departmentId === deptId), [projects]);
+  const getTasksByProject = useCallback((projectId: string) => tasks.filter(t => t.projectId === projectId), [tasks]);
+  const getTasksByUser = useCallback((userId: string) => tasks.filter(t => t.assignedTo === userId), [tasks]);
 
   return (
     <DataContext.Provider

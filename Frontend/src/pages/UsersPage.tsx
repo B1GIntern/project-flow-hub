@@ -13,7 +13,7 @@ const UsersPage = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
 
   // Show which departments a user heads
-  const getDeptHeadOf = (userId: number) =>
+  const getDeptHeadOf = (userId: string) =>
     departments.filter(d => d.deptHeadId === userId).map(d => d.name);
 
   return (

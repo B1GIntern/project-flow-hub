@@ -52,11 +52,11 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <DataProvider>
-          <AuthProvider>
+        <AuthProvider>
+          <DataProvider>
             <AuthenticatedRoutes />
-          </AuthProvider>
-        </DataProvider>
+          </DataProvider>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>

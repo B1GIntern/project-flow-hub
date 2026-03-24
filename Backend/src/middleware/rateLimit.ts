@@ -10,9 +10,20 @@ export const globalRateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+// Strict limiter for login — protects against brute-force
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: 20, // was 5, increased to allow normal usage
   standardHeaders: true,
   legacyHeaders: false,
+  message: { error: 'Too many login attempts, please try again later.' },
+});
+
+// Relaxed limiter for refresh — called automatically on every page load
+export const refreshRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60, // generous since this is automatic, not user-triggered
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many refresh attempts, please try again later.' },
 });

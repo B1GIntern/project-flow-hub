@@ -1,34 +1,34 @@
 export type RoleName = 'ADMIN' | 'DEPT_HEAD' | 'MANAGER' | 'SUPERVISOR' | 'EMPLOYEE' | string;
 
 export interface Role {
-  id: number;
+  id: string;
   name: string;
 }
 
 export interface Department {
-  id: number;
+  id: string;
   name: string;
-  deptHeadId: number | null;
+  deptHeadId: string | null;
   createdAt: string;
 }
 
 export interface User {
-  id: number;
+  id: string;
   fullName: string;
   email: string;
   password: string;
-  roleId: number;
-  managerId: number | null;
-  departmentId: number | null;
+  roleId: string;
+  managerId: string | null;
+  departmentId: string | null;
   avatar?: string;
 }
 
 export type ProjectStatus = 'PLANNING' | 'ACTIVE' | 'COMPLETED' | 'ON_HOLD';
 
 export interface Project {
-  id: number;
+  id: string;
   name: string;
-  departmentId: number;
+  departmentId: string;
   status: ProjectStatus;
 }
 
@@ -36,12 +36,12 @@ export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 export type TaskStatus = 'BACKLOG' | 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE';
 
 export interface Task {
-  id: number;
-  projectId: number;
+  id: string;
+  projectId: string;
   title: string;
   description: string;
-  assignedTo: number;
-  createdBy: number;
+  assignedTo: string;
+  createdBy: string;
   priority: TaskPriority;
   status: TaskStatus;
   dueDate: string;
@@ -49,8 +49,8 @@ export interface Task {
 }
 
 export interface KPI {
-  id: number;
-  userId: number;
+  id: string;
+  userId: string;
   periodMonth: number;
   periodYear: number;
   tasksCompleted: number;
