@@ -170,25 +170,86 @@ export async function updateUser(req: Request, res: Response) {
 export async function deleteUser(req: Request, res: Response) {
   try {
     const { id } = req.params;
+    const { force } = req.query;
 
-    const { rows: reports } = await pool.query(
-      'SELECT COUNT(*) as count FROM users WHERE manager_id = $1',
+    console.log('Backend: Received delete request for ID:', id, 'Type:', typeof id);
+    console.log('Backend: Request params:', req.params);
+    console.log('Backend: Request query:', req.query);
+    console.log('Backend: Full request URL:', req.originalUrl);
+    console.log('Backend: Request headers:', req.headers);
+
+    // Log override attempts
+    if (force === 'true') {
+      console.log(`FORCE DELETE: User ${id} - Safety checks overridden`);
+    }
+
+    // Skip safety checks if force=true
+    if (force !== 'true') {
+      const { rows: reports } = await pool.query(
+        'SELECT COUNT(*) as count FROM users WHERE manager_id = $1',
+        [id]
+      );
+
+      if (parseInt(reports[0].count) > 0) {
+        return res.status(400).json({ 
+          error: 'Cannot delete user with direct reports',
+          hasReports: true,
+          reportCount: parseInt(reports[0].count)
+        });
+      }
+
+      const { rows: deptHead } = await pool.query(
+        'SELECT COUNT(*) as count FROM departments WHERE dept_head_id = $1',
+        [id]
+      );
+
+      if (parseInt(deptHead[0].count) > 0) {
+        return res.status(400).json({ 
+          error: 'Cannot delete department head',
+          isDeptHead: true,
+          deptCount: parseInt(deptHead[0].count)
+        });
+      }
+    }
+
+    // Get auth_user_id before deleting from database
+    console.log('Backend: Querying user record for ID:', id);
+    console.log('Backend: SQL Query: SELECT auth_user_id FROM users WHERE id = $1', [id]);
+    
+    // First, let's check what users exist in database
+    console.log('Backend: Checking all users in database...');
+    const { rows: allUsers } = await pool.query('SELECT id, email FROM users LIMIT 5');
+    console.log('Backend: All users in database:', allUsers);
+    
+    const { rows: userRecord } = await pool.query(
+      'SELECT auth_user_id FROM users WHERE id = $1',
       [id]
     );
 
-    if (parseInt(reports[0].count) > 0) {
-      return res.status(400).json({ error: 'Cannot delete user with direct reports' });
+    console.log('Backend: User record query result:', userRecord);
+    console.log('Backend: Number of records found:', userRecord.length);
+    console.log('Backend: Looking for ID:', id, 'in users:', allUsers.map(u => u.id));
+
+    if (userRecord.length === 0) {
+      console.log('Backend: User not found in database for ID:', id);
+      return res.status(404).json({ error: 'User not found' });
     }
 
-    const { rows: deptHead } = await pool.query(
-      'SELECT COUNT(*) as count FROM departments WHERE dept_head_id = $1',
-      [id]
-    );
+    const authUserId = userRecord[0].auth_user_id;
 
-    if (parseInt(deptHead[0].count) > 0) {
-      return res.status(400).json({ error: 'Cannot delete department head' });
+    // Delete from Supabase Auth first
+    if (authUserId) {
+      const { error: authError } = await supabase.auth.admin.deleteUser(authUserId);
+      
+      if (authError) {
+        console.error('Failed to delete from auth.users:', authError);
+        return res.status(500).json({ error: 'Failed to delete user authentication' });
+      }
+
+      console.log(`Successfully deleted user ${authUserId} from auth.users`);
     }
 
+    // Delete from database
     const { rows } = await pool.query(
       'DELETE FROM users WHERE id = $1 RETURNING id',
       [id]
@@ -198,9 +259,39 @@ export async function deleteUser(req: Request, res: Response) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    console.log(`Successfully deleted user ${id} from public.users`);
     res.status(204).send();
+    console.log('Backend: Sent 204 response');
   } catch (error) {
     console.error('Error deleting user:', error);
     res.status(500).json({ error: 'Failed to delete user' });
+  }
+}
+
+export async function getUserDependencies(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+
+    // Get direct reports
+    const { rows: reports } = await pool.query(
+      'SELECT u.full_name FROM users u WHERE u.manager_id = $1',
+      [id]
+    );
+
+    // Get departments headed
+    const { rows: deptHead } = await pool.query(
+      'SELECT d.name FROM departments d WHERE d.dept_head_id = $1',
+      [id]
+    );
+
+    res.json({
+      reports: reports.length,
+      deptHead: deptHead.length,
+      reportNames: reports.map(r => r.full_name),
+      deptNames: deptHead.map(d => d.name)
+    });
+  } catch (error) {
+    console.error('Error checking dependencies:', error);
+    res.status(500).json({ error: 'Failed to check dependencies' });
   }
 }
