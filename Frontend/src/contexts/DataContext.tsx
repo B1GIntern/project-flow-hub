@@ -4,7 +4,6 @@ import { apiFetch } from '@/lib/api';
 import { User, Department, Project, Task, KPI, Role } from '@/types/models';
 import {
   roles as seedRoles,
-  departments as seedDepartments,
   users as seedUsers,
   projects as seedProjects,
   tasks as seedTasks,
@@ -19,13 +18,14 @@ interface DataContextType {
   tasks: Task[];
   kpis: KPI[];
   addUser: (user: Omit<User, 'id'>) => Promise<void>;
-  updateUser: (id: string, updates: Partial<User>) => void;
+  updateUser: (id: string, updates: Partial<User>) => Promise<void>;
   deleteUser: (id: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
   setUsers: (users: User[]) => void;
   setKpis: (kpis: KPI[]) => void;
-  addDepartment: (dept: Omit<Department, 'id' | 'createdAt'>) => void;
-  updateDepartment: (id: string, updates: Partial<Department>) => void;
-  deleteDepartment: (id: string) => void;
+  addDepartment: (dept: Omit<Department, 'id' | 'createdAt'>) => Promise<void>;
+  updateDepartment: (id: string, updates: Partial<Department>) => Promise<void>;
+  deleteDepartment: (id: string) => Promise<void>;
+  reassignUsers: (fromDepartmentId: string, toDepartmentId: string | null) => Promise<void>;
   addProject: (project: Omit<Project, 'id'>) => void;
   updateProject: (id: string, updates: Partial<Project>) => void;
   deleteProject: (id: string) => void;
@@ -52,7 +52,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { getAccessToken, currentUser, currentRole } = useAuth();
 
   const [roles, setRoles] = useState<Role[]>([...seedRoles]);
-  const [departments, setDepartments] = useState<Department[]>([...seedDepartments]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -166,9 +166,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const updateUser = useCallback((id: string, updates: Partial<User>) => {
-    setUsers(prev => prev.map(u => (u.id === id ? { ...u, ...updates } : u)));
-  }, []);
+  const updateUser = useCallback(async (id: string, updates: Partial<User>) => {
+    try {
+      console.log('Updating user:', id, updates);
+      
+      const res = await apiFetch(`/users/${id}`, {
+        method: 'PUT',
+        getAccessToken,
+        body: JSON.stringify(updates),
+      });
+
+      console.log('Update user response status:', res.status);
+      
+      if (res.ok) {
+        const updatedUser = await res.json();
+        console.log('User updated successfully:', updatedUser);
+        // Update local state with real DB response
+        setUsers(prev => prev.map(u => (u.id === id ? updatedUser : u)));
+      } else {
+        const err = await res.json();
+        console.error('Failed to update user:', err);
+        alert(`Failed to update user: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to update user:', err);
+      alert('Failed to update user: Network error');
+    }
+  }, [getAccessToken]);
 
   const deleteUser = useCallback(async (id: string, force: boolean = false) => {
     const userToDelete = users.find(u => u.id === id);
@@ -243,20 +267,130 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [getAccessToken, users]);
 
-  const addDepartment = useCallback((dept: Omit<Department, 'id' | 'createdAt'>) => {
-    setDepartments(prev => [
-      ...prev,
-      { ...dept, id: crypto.randomUUID(), createdAt: new Date().toISOString() },
-    ]);
-  }, []);
+  const addDepartment = useCallback(async (dept: Omit<Department, 'id' | 'createdAt'>) => {
+    try {
+      console.log('Creating department:', dept);
+      
+      const res = await apiFetch('/departments', {
+        method: 'POST',
+        getAccessToken,
+        body: JSON.stringify({
+          name: dept.name,
+          dept_head_id: dept.deptHeadId
+        }),
+      });
 
-  const updateDepartment = useCallback((id: string, updates: Partial<Department>) => {
-    setDepartments(prev => prev.map(d => (d.id === id ? { ...d, ...updates } : d)));
-  }, []);
+      console.log('Response status:', res.status);
+      
+      if (res.ok) {
+        const newDept = await res.json();
+        console.log('Department created successfully:', newDept);
+        // Add real DB department into local state
+        setDepartments(prev => [...prev, newDept]);
+      } else {
+        const err = await res.json();
+        console.error('Failed to create department:', err);
+        alert(`Failed to create department: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to create department:', err);
+      alert('Failed to create department: Network error');
+    }
+  }, [getAccessToken]);
 
-  const deleteDepartment = useCallback((id: string) => {
-    setDepartments(prev => prev.filter(d => d.id !== id));
-  }, []);
+  const updateDepartment = useCallback(async (id: string, updates: Partial<Department>) => {
+    try {
+      console.log('Updating department:', id, updates);
+      
+      const res = await apiFetch(`/departments/${id}`, {
+        method: 'PUT',
+        getAccessToken,
+        body: JSON.stringify({
+          name: updates.name,
+          dept_head_id: updates.deptHeadId
+        }),
+      });
+
+      console.log('Response status:', res.status);
+      
+      if (res.ok) {
+        const updatedDept = await res.json();
+        console.log('Department updated successfully:', updatedDept);
+        // Update local state with real DB response
+        setDepartments(prev => prev.map(d => (d.id === id ? updatedDept : d)));
+      } else {
+        const err = await res.json();
+        console.error('Failed to update department:', err);
+        alert(`Failed to update department: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to update department:', err);
+      alert('Failed to update department: Network error');
+    }
+  }, [getAccessToken]);
+
+  const deleteDepartment = useCallback(async (id: string) => {
+    try {
+      console.log('Deleting department:', id);
+      
+      const res = await apiFetch(`/departments/${id}`, {
+        method: 'DELETE',
+        getAccessToken
+      });
+
+      console.log('Response status:', res.status);
+      
+      if (res.ok || res.status === 204) {
+        console.log('Department deleted successfully');
+        // Remove from local state
+        setDepartments(prev => prev.filter(d => d.id !== id));
+      } else {
+        const err = await res.json();
+        console.error('Failed to delete department:', err);
+        alert(`Failed to delete department: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to delete department:', err);
+      alert('Failed to delete department: Network error');
+    }
+  }, [getAccessToken]);
+
+  const reassignUsers = useCallback(async (fromDepartmentId: string, toDepartmentId: string | null) => {
+    try {
+      console.log('Reassigning users from department:', fromDepartmentId, 'to:', toDepartmentId);
+      
+      const res = await apiFetch(`/departments/${fromDepartmentId}/reassign-users`, {
+        method: 'POST',
+        getAccessToken,
+        body: JSON.stringify({
+          newDepartmentId: toDepartmentId
+        }),
+      });
+
+      console.log('Reassignment response status:', res.status);
+      
+      if (res.ok) {
+        const result = await res.json();
+        console.log('Users reassigned successfully:', result);
+        
+        // Update local state - move users to new department or make them unassigned
+        setUsers(prev => prev.map(user => 
+          user.departmentId === fromDepartmentId 
+            ? { ...user, departmentId: toDepartmentId }
+            : user
+        ));
+        
+        return result;
+      } else {
+        const err = await res.json();
+        console.error('Failed to reassign users:', err);
+        throw new Error(err.error || 'Failed to reassign users');
+      }
+    } catch (err) {
+      console.error('Failed to reassign users:', err);
+      throw err;
+    }
+  }, [getAccessToken]);
 
   const addProject = useCallback((project: Omit<Project, 'id'>) => {
     setProjects(prev => [...prev, { ...project, id: crypto.randomUUID() }]);
@@ -315,7 +449,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         roles, departments, users, projects, tasks, kpis,
         addUser, updateUser, deleteUser, setUsers, setKpis,
-        addDepartment, updateDepartment, deleteDepartment,
+        addDepartment, updateDepartment, deleteDepartment, reassignUsers,
         addProject, updateProject, deleteProject,
         addTask, updateTask, deleteTask,
         addRole, updateRole, deleteRole,

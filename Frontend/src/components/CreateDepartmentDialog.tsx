@@ -16,15 +16,15 @@ export const CreateDepartmentDialog = ({ open, onOpenChange }: CreateDepartmentD
   const [name, setName] = useState('');
   const [deptHeadId, setDeptHeadId] = useState('');
 
-  // Any user with DEPT_HEAD role can head multiple departments
-  const deptHeadCandidates = users.filter(u => u.roleId === 2);
+  // Any user with DEPT_HEAD, MANAGER, SUPERVISOR, or ADMIN role can head departments
+  const deptHeadCandidates = users.filter(u => ['1', '2', '3', '4'].includes(u.roleId) && u.id && u.id !== '');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) return;
-    addDepartment({
+    await addDepartment({
       name,
-      deptHeadId: deptHeadId && deptHeadId !== 'none' ? Number(deptHeadId) : null,
+      deptHeadId: deptHeadId && deptHeadId !== 'none' ? deptHeadId : null,
     });
     setName(''); setDeptHeadId('');
     onOpenChange(false);
@@ -48,7 +48,7 @@ export const CreateDepartmentDialog = ({ open, onOpenChange }: CreateDepartmentD
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
                 {deptHeadCandidates.map(u => (
-                  <SelectItem key={u.id} value={String(u.id)}>{u.fullName}</SelectItem>
+                  <SelectItem key={u.id} value={u.id}>{u.fullName}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

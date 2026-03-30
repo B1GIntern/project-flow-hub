@@ -144,23 +144,47 @@ export async function updateUser(req: Request, res: Response) {
     const { id } = req.params;
     const { fullName, email, roleId, departmentId, managerId } = req.body;
 
+    console.log('Backend: updateUser request for user ID:', id);
+    console.log('Backend: Request body:', { fullName, email, roleId, departmentId, managerId });
+
     const { rows } = await pool.query(`
       UPDATE users 
       SET full_name = COALESCE($1, full_name),
           email = COALESCE($2, email),
           role_id = COALESCE($3, role_id),
           department_id = COALESCE($4, department_id),
-          manager_id = COALESCE($5, manager_id),
-          updated_at = NOW()
+          manager_id = COALESCE($5, manager_id)
       WHERE id = $6
       RETURNING id, full_name, email, role_id, manager_id, department_id, avatar
     `, [fullName, email, roleId, departmentId, managerId, id]);
+
+    console.log('Backend: User update query result:', rows);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    res.json(rows[0]);
+    // If role changed from DEPT_HEAD to something else, clear department head references
+    if (roleId && roleId !== '2') { // Assuming '2' is DEPT_HEAD role
+      console.log('Backend: User role changed from DEPT_HEAD, clearing department head references');
+      await pool.query(
+        'UPDATE departments SET dept_head_id = NULL WHERE dept_head_id = $1',
+        [id]
+      );
+    }
+
+    const updatedUser = {
+      id: rows[0].id,
+      fullName: rows[0].full_name,
+      email: rows[0].email,
+      roleId: rows[0].role_id,
+      managerId: rows[0].manager_id,
+      departmentId: rows[0].department_id,
+      avatar: rows[0].avatar,
+    };
+
+    console.log('Backend: Returning updated user:', updatedUser);
+    res.json(updatedUser);
   } catch (error) {
     console.error('Error updating user:', error);
     res.status(500).json({ error: 'Failed to update user' });
@@ -198,17 +222,26 @@ export async function deleteUser(req: Request, res: Response) {
         });
       }
 
+      // Check if user is currently a department head
+      console.log('Backend: Checking if user is currently a department head...');
       const { rows: deptHead } = await pool.query(
         'SELECT COUNT(*) as count FROM departments WHERE dept_head_id = $1',
         [id]
       );
 
+      console.log('Backend: Department head check result:', deptHead);
+      console.log('Backend: User ID being checked:', id);
+      console.log('Backend: Departments where this user is head:', deptHead);
+
       if (parseInt(deptHead[0].count) > 0) {
+        console.log('Backend: User is still a department head, blocking deletion');
         return res.status(400).json({ 
           error: 'Cannot delete department head',
           isDeptHead: true,
           deptCount: parseInt(deptHead[0].count)
         });
+      } else {
+        console.log('Backend: User is not a department head, deletion allowed');
       }
     }
 

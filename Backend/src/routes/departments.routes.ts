@@ -12,4 +12,5 @@ departmentsRoutes.use(requireAuth);
 
 departmentsRoutes.post('/', departmentsController.create);
 departmentsRoutes.put('/:id', departmentsController.update);
+departmentsRoutes.post('/:id/reassign-users', departmentsController.reassignUsers);
 departmentsRoutes.delete('/:id', departmentsController.delete);

@@ -9,13 +9,15 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CreateDepartmentDialog } from '@/components/CreateDepartmentDialog';
+import { ReassignUsersDialog } from '@/components/ReassignUsersDialog';
 
 const DepartmentsPage = () => {
   const { currentUser, currentRole, hasAccess } = useAuth();
-  const { departments, users, getUser, getUsersByDepartment, getProjectsByDepartment, getInitials, updateDepartment, deleteDepartment, getRoleName } = useData();
+  const { departments, users, getUser, getUsersByDepartment, getProjectsByDepartment, getInitials, updateDepartment, deleteDepartment, getRoleName, reassignUsers } = useData();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [reassignDialogOpen, setReassignDialogOpen] = useState(false);
   const [selectedDept, setSelectedDept] = useState(null);
   const [deptToDelete, setDeptToDelete] = useState(null);
   const [editName, setEditName] = useState('');
@@ -39,11 +41,17 @@ const DepartmentsPage = () => {
     e.preventDefault();
     if (!selectedDept || !editName.trim()) return;
     
+    const payload = {
+      name: editName.trim(),
+      deptHeadId: editHeadId || null
+    };
+    
+    console.log('Frontend handleEditSubmit - Payload being sent:', payload);
+    console.log('Frontend handleEditSubmit - Department ID:', selectedDept.id);
+    console.log('Frontend handleEditSubmit - Payload JSON:', JSON.stringify(payload));
+    
     try {
-      await updateDepartment(selectedDept.id, {
-        name: editName.trim(),
-        deptHeadId: editHeadId || null
-      });
+      await updateDepartment(selectedDept.id, payload);
       setEditDialogOpen(false);
       setSelectedDept(null);
     } catch (error) {
@@ -54,7 +62,34 @@ const DepartmentsPage = () => {
 
   const openDeleteDialog = (dept: any) => {
     setDeptToDelete(dept);
-    setDeleteDialogOpen(true);
+    
+    // Check if department has users
+    const deptUsers = getUsersByDepartment(dept.id);
+    if (deptUsers.length > 0) {
+      // Has users - show reassignment modal
+      setReassignDialogOpen(true);
+    } else {
+      // No users - show regular delete confirmation
+      setDeleteDialogOpen(true);
+    }
+  };
+
+  const handleReassignAndDelete = async (newDepartmentId: string | null) => {
+    if (!deptToDelete) return;
+    
+    try {
+      // First reassign users
+      await reassignUsers(deptToDelete.id, newDepartmentId);
+      
+      // Then delete the department
+      await deleteDepartment(deptToDelete.id);
+      
+      setReassignDialogOpen(false);
+      setDeptToDelete(null);
+    } catch (error) {
+      console.error('Failed to reassign users and delete department:', error);
+      alert('Failed to reassign users and delete department. Please try again.');
+    }
   };
 
   const handleDelete = async () => {
@@ -148,6 +183,12 @@ const DepartmentsPage = () => {
       </div>
 
       <CreateDepartmentDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <ReassignUsersDialog 
+        open={reassignDialogOpen} 
+        onOpenChange={setReassignDialogOpen}
+        department={deptToDelete}
+        onReassignAndDelete={handleReassignAndDelete}
+      />
 
       {/* Edit Department Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={(open) => { if (!open) { setSelectedDept(null); } }}>
@@ -163,24 +204,6 @@ const DepartmentsPage = () => {
                 onChange={(e) => setEditName(e.target.value)} 
                 placeholder="Department name" 
               />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Head of Department</Label>
-              <Select value={editHeadId} onValueChange={setEditHeadId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select department head..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">None</SelectItem>
-                  {users
-                    .filter(u => ['2', '3', '4'].includes(u.roleId) && u.id && u.id !== '')
-                    .map(user => (
-                      <SelectItem key={user.id} value={user.id}>
-                        {user.fullName}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
             </div>
             <div className="flex justify-end space-x-2 pt-2">
               <Button type="submit" className="bg-violet-500 hover:bg-violet-600 text-white">
