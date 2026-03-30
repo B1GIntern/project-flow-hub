@@ -22,6 +22,8 @@ import DashboardPage from "./pages/DashboardPage";
 
 import DepartmentsPage from "./pages/DepartmentsPage";
 
+import MyTeamPage from "./pages/MyTeamPage";
+
 import ProjectsPage from "./pages/ProjectsPage";
 
 import UsersPage from "./pages/UsersPage";
@@ -91,6 +93,8 @@ const AuthenticatedRoutes = () => {
         />
 
         <Route path="/projects" element={<ProjectsPage />} />
+
+        <Route path="/my-team" element={<MyTeamPage />} />
 
         <Route 
 
