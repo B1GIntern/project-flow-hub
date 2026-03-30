@@ -12,7 +12,7 @@ import { TaskPriority, TaskStatus } from '@/types/models';
 interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultProjectId?: number;
+  defaultProjectId?: string;
 }
 
 export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: CreateTaskDialogProps) => {
@@ -28,7 +28,7 @@ export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: Creat
   const [dueDate, setDueDate] = useState('');
 
   useEffect(() => {
-    if (open && defaultProjectId) setProjectId(String(defaultProjectId));
+    if (open && defaultProjectId) setProjectId(defaultProjectId);
   }, [open, defaultProjectId]);
 
   const scopedDeptIds = currentRole === 'ADMIN'
@@ -37,7 +37,7 @@ export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: Creat
 
   const scopedProjects = projects.filter(p => scopedDeptIds.includes(p.departmentId));
 
-  const selectedProject = projects.find(p => p.id === Number(projectId));
+  const selectedProject = projects.find(p => p.id === projectId);
   const assignableUsers = selectedProject
     ? users.filter(u => u.departmentId === selectedProject.departmentId)
     : users;
@@ -47,18 +47,52 @@ export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: Creat
     setPriority('MEDIUM'); setStatus('TODO'); setDueDate('');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !projectId || !assignedTo || !dueDate) return;
-    addTask({
-      title, description,
-      projectId: Number(projectId),
-      assignedTo: Number(assignedTo),
-      createdBy: currentUser!.id,
-      priority, status, dueDate, completedAt: null,
-    });
-    reset();
-    onOpenChange(false);
+    
+    console.log('=== Task Creation Started ===');
+    console.log('Form data:', { title, description, projectId, assignedTo, priority, status, dueDate });
+    console.log('Current user:', currentUser);
+    
+    // Validation
+    if (!title || !projectId || !assignedTo || !dueDate) {
+      console.log('Validation failed - missing fields:', { 
+        title: !!title, 
+        projectId: !!projectId, 
+        assignedTo: !!assignedTo, 
+        dueDate: !!dueDate 
+      });
+      alert('Task title, project, assigned user, and due date are required');
+      return;
+    }
+
+    try {
+      console.log('Calling addTask with data:', {
+        title: title.trim(),
+        description: description.trim(),
+        });
+      
+      addTask({
+        title: title.trim(),
+        description: description.trim(),
+        projectId: projectId,
+        assignedTo: assignedTo,
+        priority,
+        status,
+        dueDate: dueDate || undefined,
+        createdBy: currentUser!.id as string,
+        createdAt: new Date().toISOString(),
+        completedAt: null
+      });
+      
+      console.log('Task created successfully');
+      reset();
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Failed to create task:', error);
+      console.error('Error details:', error.message || error);
+      alert('Failed to create task. Please try again.');
+    }
   };
 
   return (
@@ -127,8 +161,8 @@ export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: Creat
             <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
           </div>
           <div className="flex gap-2 pt-2">
-            <Button type="submit" className="flex-1">Create Task</Button>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" className="flex-1 bg-violet-500 hover:bg-violet-600 text-white">Create Task</Button>
+            <Button type="button" variant="outline" className="border-violet-500 text-violet-500 hover:bg-violet-50" onClick={() => onOpenChange(false)}>Cancel</Button>
           </div>
         </form>
       </DialogContent>

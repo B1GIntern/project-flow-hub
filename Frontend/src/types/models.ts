@@ -14,6 +14,7 @@ export interface Department {
 
 export interface User {
   id: string;
+  authUserId: string;
   fullName: string;
   email: string;
   password: string;
@@ -21,6 +22,7 @@ export interface User {
   managerId: string | null;
   departmentId: string | null;
   avatar?: string;
+  createdAt: string;
 }
 
 export type ProjectStatus = 'PLANNING' | 'ACTIVE' | 'COMPLETED' | 'ON_HOLD';
@@ -30,6 +32,7 @@ export interface Project {
   name: string;
   departmentId: string;
   status: ProjectStatus;
+  createdAt: string;
 }
 
 export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
@@ -46,6 +49,7 @@ export interface Task {
   status: TaskStatus;
   dueDate: string;
   completedAt: string | null;
+  createdAt: string;
 }
 
 export interface KPI {

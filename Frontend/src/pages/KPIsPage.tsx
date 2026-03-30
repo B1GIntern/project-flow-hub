@@ -16,15 +16,15 @@ const KPIsPage = () => {
       ? departments.filter(d => d.deptHeadId === currentUser!.id).map(d => d.id)
       : currentUser!.departmentId ? [currentUser!.departmentId] : [];
 
-  const scopedUsers = users.filter(u => scopedDeptIds.includes(u.departmentId ?? -1) && u.roleId === 5);
+  const scopedUsers = users.filter(u => scopedDeptIds.includes(u.departmentId ?? '') && u.roleId === '5');
   const monthKpis = kpis.filter(k => k.periodMonth === Number(selectedMonth));
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">KPI Dashboard</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Employee performance metrics</p>
+          <h1 className="text-lg sm:text-xl font-semibold">KPI Dashboard</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Employee performance metrics</p>
         </div>
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
           <SelectTrigger className="h-8 text-xs w-[140px]">
@@ -37,7 +37,7 @@ const KPIsPage = () => {
         </Select>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {(() => {
           const relevantKpis = monthKpis.filter(k => scopedUsers.some(u => u.id === k.userId));
           const avgOnTime = relevantKpis.length
@@ -49,37 +49,37 @@ const KPIsPage = () => {
           const totalCompleted = relevantKpis.reduce((s, k) => s + k.tasksCompleted, 0);
           return (
             <>
-              <div className="surface-card p-5">
+              <div className="surface-card p-4">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Avg On-Time</p>
-                <p className="text-2xl font-semibold font-mono tabular-nums">{avgOnTime}%</p>
+                <p className="text-xl sm:text-2xl font-semibold font-mono tabular-nums">{avgOnTime}%</p>
               </div>
-              <div className="surface-card p-5">
+              <div className="surface-card p-4">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Avg Rating</p>
-                <p className="text-2xl font-semibold font-mono tabular-nums">★ {avgRating}</p>
+                <p className="text-xl sm:text-2xl font-semibold font-mono tabular-nums">★ {avgRating}</p>
               </div>
-              <div className="surface-card p-5">
+              <div className="surface-card p-4">
                 <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Total Completed</p>
-                <p className="text-2xl font-semibold font-mono tabular-nums">{totalCompleted}</p>
+                <p className="text-xl sm:text-2xl font-semibold font-mono tabular-nums">{totalCompleted}</p>
               </div>
             </>
           );
         })()}
       </div>
 
-      <div className="surface-card">
-        <div className="grid grid-cols-[1fr_120px_100px_100px_80px] px-4 py-2 border-b border-border">
+      <div className="surface-card overflow-x-auto">
+        <div className="grid grid-cols-[1fr_120px_100px_100px_80px] min-w-[500px] px-4 py-2 border-b border-border">
           <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Employee</span>
-          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Department</span>
-          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">On-Time %</span>
-          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Completed</span>
-          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Rating</span>
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider min-w-[120px]">Department</span>
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider min-w-[100px]">On-Time %</span>
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider min-w-[100px]">Completed</span>
+          <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider min-w-[80px]">Rating</span>
         </div>
         <div className="divide-y divide-border">
           {scopedUsers.map(user => {
             const kpi = monthKpis.find(k => k.userId === user.id);
-            const dept = getDepartment(user.departmentId ?? 0);
+            const dept = getDepartment(user.departmentId ?? '');
             return (
-              <div key={user.id} className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-3 hover:bg-accent transition-colors">
+              <div key={user.id} className="grid grid-cols-[1fr_120px_100px_100px_80px] items-center px-4 py-3 hover:bg-accent transition-colors min-w-[500px]">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <Avatar className="w-8 h-8">
                     <AvatarFallback className="text-xs bg-muted text-muted-foreground">{getInitials(user.fullName)}</AvatarFallback>

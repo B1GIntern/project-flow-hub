@@ -5,10 +5,10 @@ import { loadEnv } from '../config/env.js';
 const env = loadEnv();
 
 export interface JwtPayload {
-  userId: number;
+  userId: string;
   email: string;
-  roleId: number;
-  departmentId?: number;
+  roleId: string;
+  departmentId?: string;
 }
 
 declare global {
@@ -39,22 +39,27 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
 export function requireRole(allowedRoles: string[]) {
   return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ error: 'Unauthorized' });
-    const roleName = getRoleName(req.user.roleId);
-    if (!allowedRoles.includes(roleName)) {
+    
+    // The JWT contains roleId as UUID, but we also have roleName in the user object
+    // Let's check if the user object has roleName, otherwise use the roleId lookup
+    const userRoleName = (req.user as any).roleName || getRoleName(req.user.roleId);
+    
+    if (!allowedRoles.includes(userRoleName)) {
       return res.status(403).json({ error: 'Forbidden' });
     }
     next();
   };
 }
 
-const ROLE_NAMES: Record<number, string> = {
-  1: 'ADMIN',
-  2: 'DEPT_HEAD',
-  3: 'MANAGER',
-  4: 'SUPERVISOR',
-  5: 'EMPLOYEE',
+// Fallback role mapping - but ideally we should use roleName from the user object
+const ROLE_NAMES: Record<string, string> = {
+  'ADMIN': 'ADMIN',
+  'DEPT_HEAD': 'DEPT_HEAD', 
+  'MANAGER': 'MANAGER',
+  'SUPERVISOR': 'SUPERVISOR',
+  'EMPLOYEE': 'EMPLOYEE',
 };
 
-function getRoleName(roleId: number): string {
+function getRoleName(roleId: string): string {
   return ROLE_NAMES[roleId] ?? 'UNKNOWN';
 }

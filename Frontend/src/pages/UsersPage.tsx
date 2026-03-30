@@ -4,7 +4,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Plus, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CreateUserDialog } from '@/components/CreateUserDialog';
 import { EditUserDialog } from '@/components/EditUserDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
@@ -18,27 +19,68 @@ const UsersPage = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Search and pagination states
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 8;
 
   // Show which departments a user heads
   const getDeptHeadOf = (userId: string) =>
     departments.filter(d => d.deptHeadId === userId).map(d => d.name);
 
+  // Filter users based on search query
+  const filteredUsers = users.filter(user => {
+    const query = searchQuery.toLowerCase();
+    const role = getRoleName(user.roleId);
+    const dept = user.departmentId ? getDepartment(user.departmentId) : null;
+    
+    return (
+      user.fullName.toLowerCase().includes(query) ||
+      user.email.toLowerCase().includes(query) ||
+      role.toLowerCase().includes(query) ||
+      (dept?.name.toLowerCase().includes(query) || false)
+    );
+  });
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
+  const startIndex = (currentPage - 1) * usersPerPage;
+  const endIndex = startIndex + usersPerPage;
+  const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+  
+  // Reset pagination when search changes
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+    setCurrentPage(1);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-semibold">User Directory</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{users.length} users</p>
+          <h1 className="text-lg sm:text-xl font-semibold">User Directory</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{filteredUsers.length} users</p>
         </div>
         {hasAccess(['ADMIN']) && (
-          <Button size="sm" onClick={() => setDialogOpen(true)}>
+          <Button size="sm" className="bg-violet-500 hover:bg-violet-600 text-white h-9 min-h-[36px]" onClick={() => setDialogOpen(true)}>
             <Plus className="w-4 h-4 mr-1" /> New User
           </Button>
         )}
       </div>
 
-      <div className="surface-card">
-        <div className="grid grid-cols-[1fr_120px_140px_140px_140px_80px] px-4 py-2 border-b border-border">
+      {/* Search Bar */}
+      <div className="w-full max-w-md">
+        <Input
+          placeholder="Search by name, email, or role..."
+          value={searchQuery}
+          onChange={(e) => handleSearchChange(e.target.value)}
+          className="border-violet-200 focus:border-violet-500 focus:ring-violet-500"
+        />
+      </div>
+
+      <div className="surface-card overflow-x-auto">
+        <div className="grid grid-cols-[1fr_120px_140px_140px_140px_80px] min-w-[700px] px-4 py-2 border-b border-border">
           <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">User</span>
           <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Role</span>
           <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Department</span>
@@ -47,7 +89,7 @@ const UsersPage = () => {
           <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">ACTIONS</span>
         </div>
         <div className="divide-y divide-border">
-          {users.map(user => {
+          {paginatedUsers.map(user => {
             const role = getRoleName(user.roleId);
             const dept = user.departmentId ? getDepartment(user.departmentId) : null;
             const manager = user.managerId ? getUser(user.managerId) : null;
@@ -108,6 +150,55 @@ const UsersPage = () => {
           })}
         </div>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex flex-col items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="border-violet-500 text-violet-500 hover:bg-violet-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            
+            <div className="flex gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                <Button
+                  key={page}
+                  variant={page === currentPage ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setCurrentPage(page)}
+                  className={
+                    page === currentPage
+                      ? "bg-violet-500 hover:bg-violet-600 text-white"
+                      : "border-violet-500 text-violet-500 hover:bg-violet-50"
+                  }
+                >
+                  {page}
+                </Button>
+              ))}
+            </div>
+            
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(currentPage + 1)}
+              disabled={currentPage === totalPages}
+              className="border-violet-500 text-violet-500 hover:bg-violet-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+          </div>
+          
+          <p className="text-sm text-muted-foreground">
+            Showing {startIndex + 1} to {Math.min(endIndex, filteredUsers.length)} of {filteredUsers.length} users
+          </p>
+        </div>
+      )}
 
       <CreateUserDialog open={dialogOpen} onOpenChange={setDialogOpen} />
       

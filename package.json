@@ -2,10 +2,14 @@
   "name": "project-tracker",
   "private": true,
   "scripts": {
-    "dev": "npm run dev --prefix Frontend",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "npm run dev --prefix Backend",
+    "dev:frontend": "npm run dev --prefix Frontend",
     "build": "npm run build --prefix Frontend",
     "test": "npm run test --prefix Frontend",
     "lint": "npm run lint --prefix Frontend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }

@@ -33,12 +33,12 @@ export const AppSidebar = () => {
   if (!currentUser) return null;
 
   return (
-    <aside className="w-60 h-screen flex flex-col border-r border-sidebar-border bg-sidebar flex-shrink-0">
-      <div className="px-4 h-14 flex items-center gap-2 border-b border-sidebar-border">
+    <aside className="w-60 h-screen flex flex-col border-r border-white/20 bg-gradient-to-br from-violet-500 to-purple-600 flex-shrink-0">
+      <div className="px-4 h-14 flex items-center gap-4 border-b border-gray-800/20">
         <div className="w-7 h-7 rounded-md bg-primary flex items-center justify-center">
           <LayoutDashboard className="w-4 h-4 text-primary-foreground" />
         </div>
-        <span className="font-semibold text-sm text-sidebar-foreground">Apex Tracker</span>
+        <span className="font-semibold text-sm text-sidebar-foreground">Project Tracker</span>
       </div>
 
       <Separator />
@@ -52,20 +52,24 @@ export const AppSidebar = () => {
               <Link
                 key={item.path}
                 to={item.path}
-                className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md text-sm transition-colors ${
-                  active
-                    ? 'bg-sidebar-accent text-sidebar-foreground font-medium'
-                    : 'text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground'
-                }`}
+                className="px-3 py-3"
               >
-                {item.icon}
-                {item.label}
+                <div
+                  className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 cursor-pointer ${
+                    active
+                      ? 'bg-violet-500 text-white shadow-sm'
+                      : 'text-white/85 hover:bg-white/15 hover:text-white'
+                  }`}
+                >
+                  {item.icon}
+                  <span className="font-medium">{item.label}</span>
+                </div>
               </Link>
             );
           })}
       </nav>
 
-      <div className="px-3 py-3 border-t border-sidebar-border">
+      <div className="px-3 py-3 border-t border-white/20">
         <div className="flex items-center gap-2.5">
           <Avatar className="w-8 h-8">
             <AvatarFallback className="text-xs bg-primary text-primary-foreground">
@@ -73,10 +77,10 @@ export const AppSidebar = () => {
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-sidebar-foreground truncate">{currentUser.fullName}</p>
-            <p className="text-[11px] text-muted-foreground">{currentRole}</p>
+            <p className="text-sm font-medium text-white truncate">{currentUser.fullName}</p>
+            <p className="text-[11px] text-white/70">{currentRole}</p>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={logout}>
+          <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0 text-white/70 hover:text-white hover:bg-white/10" onClick={logout}>
             <LogOut className="w-4 h-4" />
           </Button>
         </div>

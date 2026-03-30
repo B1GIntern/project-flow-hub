@@ -3,120 +3,174 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { LayoutDashboard, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, AlertCircle, Mail, Lock, Eye, EyeOff, Check } from 'lucide-react';
 
 const LoginPage = () => {
   const { login } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [seedLoading, setSeedLoading] = useState(false);
-  const [seedMessage, setSeedMessage] = useState('');
-
   const [loginLoading, setLoginLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (loginLoading) return;
+    
+    // Basic validation
+    if (!email.trim() || !password.trim()) {
+      setError('Email and password are required');
+      return;
+    }
+    
+    if (!email.includes('@')) {
+      setError('Please enter a valid email address');
+      return;
+    }
+    
     setLoginLoading(true);
     try {
       const success = await login(email, password);
-      if (!success) setError('Invalid email or password');
+      if (!success) {
+        setError('Invalid email or password. Please check your credentials and try again.');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoginLoading(false);
     }
   };
 
-  const handleSeedDatabase = async () => {
-    setSeedLoading(true);
-    setSeedMessage('');
-    try {
-      const url = import.meta.env.VITE_SUPABASE_URL ?? 'https://gprlkjsbxqpawcqpssgx.supabase.co';
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? '';
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-      if (anonKey) headers['Authorization'] = `Bearer ${anonKey}`;
-      const res = await fetch(`${url}/functions/v1/seed-database`, {
-        method: 'POST',
-        headers,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        setSeedMessage(data.message ?? 'Database seeded successfully');
-      } else {
-        setSeedMessage(data.error ?? 'Seed failed');
-      }
-    } catch {
-      setSeedMessage('Failed to seed database');
-    } finally {
-      setSeedLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
-            <LayoutDashboard className="w-6 h-6 text-primary-foreground" />
+    <div className="min-h-screen flex">
+      {/* Left Side - Branding Panel */}
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-violet-500 to-violet-600 relative overflow-hidden">
+        {/* Decorative Background Pattern */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-20 w-72 h-72 bg-violet-500/20 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-violet-400/10 rounded-full blur-2xl"></div>
+        </div>
+        
+        {/* Content */}
+        <div className="relative z-10 flex flex-col items-center justify-center text-center h-full w-full px-12">
+          <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center mb-8">
+            <LayoutDashboard className="w-8 h-8 text-white" />
           </div>
-          <div className="text-center">
-            <h1 className="text-2xl font-bold">Apex Tracker</h1>
-            <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
+          
+          <h1 className="text-4xl text-white/100 font-bold mb-4">Project Tracker</h1>
+          <p className="text-lg text-white/100 mb-12 text-center max-w-md">
+            Manage projects, track progress, and collaborate with your team efficiently.
+          </p>
+          
+          <div className="flex flex-col items-center gap-4 mt-6 text-center">
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                <Check className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-white/90">Track project progress in real-time</span>
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                <Check className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-white/90">Collaborate with your team</span>
+            </div>
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center">
+                <Check className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-white/90">Manage tasks and deadlines</span>
+            </div>
           </div>
         </div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="surface-card p-6 space-y-4">
-          {error && (
-            <div className="flex items-center gap-2 text-sm text-destructive bg-destructive/10 rounded-md px-3 py-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              {error}
+      {/* Right Side - Form Panel */}
+      <div className="flex-1 flex items-center justify-center bg-white px-8 py-12">
+        <div className="w-full max-w-md space-y-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome Back</h2>
+            <p className="text-gray-600">Sign in to your account to continue</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700" htmlFor="email">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  required
+                  disabled={loginLoading}
+                  autoComplete="email"
+                  className="pl-10 border-gray-300 focus:border-violet-500 focus:ring-violet-500 rounded-lg"
+                />
+              </div>
             </div>
-          )}
-          <div className="space-y-2">
-            <Label className="text-xs">Email</Label>
-            <Input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="sarah.admin@corp.com"
-              required
-            />
-          </div>
-          <div className="space-y-2">
-            <Label className="text-xs">Password</Label>
-            <Input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-            />
-          </div>
-          <Button type="submit" className="w-full" disabled={loginLoading}>
-            {loginLoading ? 'Signing in...' : 'Sign In'}
-          </Button>
-        </form>
 
-        <div className="surface-card p-4 space-y-3">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleSeedDatabase}
-            disabled={seedLoading}
-            className="w-full"
-          >
-            {seedLoading ? 'Seeding...' : 'Seed Database'}
-          </Button>
-          {seedMessage && (
-            <p className={`text-xs ${seedMessage.startsWith('Database') ? 'text-green-600' : 'text-destructive'}`}>
-              {seedMessage}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700" htmlFor="password">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  placeholder="Enter your password"
+                  required
+                  disabled={loginLoading}
+                  autoComplete="current-password"
+                  className="pl-10 pr-10 border-gray-300 focus:border-violet-500 focus:ring-violet-500 rounded-lg"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div></div>
+            </div>
+
+            <Button 
+              type="submit" 
+              className="w-full bg-violet-500 hover:bg-violet-600 text-white font-medium py-3 rounded-lg transition-all duration-200 transform hover:scale-[1.02]" 
+              disabled={loginLoading}
+            >
+              {loginLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Authenticating...
+                </>
+              ) : (
+                'Sign In'
+              )}
+            </Button>
+          </form>
+
+          <div className="text-center">
+            <p className="text-sm text-gray-500">
+              Sign in with your company email and password.
             </p>
-          )}
-          <p className="text-xs font-medium text-muted-foreground">Demo Credentials</p>
-          <div className="space-y-1 text-xs text-muted-foreground">
-            <p><span className="font-mono">sarah.admin@corp.com</span> / <span className="font-mono">admin123!</span> (Admin)</p>
-            <p><span className="font-mono">marcus.head@corp.com</span> / <span className="font-mono">tempPassword123!</span> (Dept Head)</p>
-            <p><span className="font-mono">david.sup@corp.com</span> / <span className="font-mono">tempPassword123!</span> (Supervisor)</p>
           </div>
         </div>
       </div>

@@ -37,8 +37,8 @@ const DashboardPage = () => {
     : tasks.filter(t => scopedProjectIds.includes(t.projectId));
 
   const scopedUsers = currentRole === 'ADMIN'
-    ? users
-    : users.filter(u => scopedDeptIds.includes(u.departmentId ?? -1));
+    ? users.filter(u => u.roleId === '5')
+    : users.filter(u => scopedDeptIds.includes(u.departmentId ?? '') && u.roleId === '5');
 
   const activeTasks = scopedTasks.filter(t => t.status !== 'DONE');
   const completedTasks = scopedTasks.filter(t => t.status === 'DONE');
@@ -46,13 +46,13 @@ const DashboardPage = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-semibold">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">
+        <h1 className="text-lg sm:text-xl font-semibold">Dashboard</h1>
+        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
           {currentRole === 'EMPLOYEE' ? 'Your workspace overview' : `${scopedDepartments.map(d => d.name).join(', ')} overview`}
         </p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {currentRole !== 'EMPLOYEE' && (
           <StatCard label="Departments" value={scopedDepartments.length} icon={<Building2 className="w-4 h-4" />} />
         )}
@@ -78,7 +78,7 @@ const DashboardPage = () => {
                   <PriorityDot priority={task.priority} />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{task.title}</p>
-                    <p className="text-xs text-muted-foreground">{getDepartment(project?.departmentId ?? 0)?.name} · {project?.name}</p>
+                    <p className="text-xs text-muted-foreground">{getDepartment(project?.departmentId ?? '')?.name} · {project?.name}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <StatusBadge status={task.status} />
@@ -103,7 +103,7 @@ const DashboardPage = () => {
               <h2 className="text-sm font-semibold">Team Performance</h2>
             </div>
             <div className="divide-y divide-border">
-              {scopedUsers.filter(u => u.roleId === 5).slice(0, 6).map(user => {
+              {scopedUsers.filter(u => u.roleId === '5').slice(0, 6).map(user => {
                 const latestKpi = kpis.find(k => k.userId === user.id && k.periodMonth === 10);
                 return (
                   <div key={user.id} className="flex items-center px-4 py-3 gap-3">
@@ -112,7 +112,7 @@ const DashboardPage = () => {
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{user.fullName}</p>
-                      <p className="text-xs text-muted-foreground">{getDepartment(user.departmentId ?? 0)?.name}</p>
+                      <p className="text-xs text-muted-foreground">{getDepartment(user.departmentId ?? '')?.name}</p>
                     </div>
                     <div className="flex items-center gap-3">
                       {latestKpi ? (

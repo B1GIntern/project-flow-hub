@@ -84,21 +84,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback(async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log('Attempting login for:', email);
+      
       const res = await fetch(`${API_URL}${API_PREFIX}/auth/login`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
-      if (!res.ok) return false;
+      
+      console.log('Login response status:', res.status);
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        console.error('Login failed:', errorData);
+        return false;
+      }
+      
       const data = await res.json();
+      console.log('Login successful, user data:', data.user?.email, data.user?.roleName);
+      
       let user = normalizeAuthUser(data.user);
       if (user && user.roleId && !user.roleName) {
         user = await resolveRoleName(user, data.accessToken);
       }
+      
+      // Store auth state
       setAuth({ accessToken: data.accessToken, user });
+      
+      // Store session in localStorage for persistence
+      localStorage.setItem('auth_user', JSON.stringify({
+        user,
+        timestamp: Date.now()
+      }));
+      
       return true;
-    } catch {
+    } catch (error) {
+      console.error('Login error:', error);
       return false;
     }
   }, [setAuth]);
@@ -110,7 +132,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         credentials: 'include',
       });
     } finally {
+      // Clear auth state
       setAuth({ accessToken: null, user: null });
+      
+      // Clear localStorage session
+      localStorage.removeItem('auth_user');
     }
   }, [setAuth]);
 
@@ -118,6 +144,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let cancelled = false;
     const restoreSession = async () => {
       try {
+        // First try refresh token (from cookie)
         const res = await fetch(`${API_URL}${API_PREFIX}/auth/refresh`, {
           method: 'POST',
           credentials: 'include',
@@ -132,6 +159,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setAuth({ accessToken: data.accessToken, user, isLoading: false });
           return;
         }
+        
+        // If refresh fails, clear auth state and allow fresh login
+        setAuth({ accessToken: null, user: null, isLoading: false });
       } catch {
         if (cancelled) return;
       } finally {

@@ -22,10 +22,13 @@ interface DataContextType {
   updateUser: (id: string, updates: Partial<User>) => void;
   deleteUser: (id: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
   setUsers: (users: User[]) => void;
+  setKpis: (kpis: KPI[]) => void;
   addDepartment: (dept: Omit<Department, 'id' | 'createdAt'>) => void;
   updateDepartment: (id: string, updates: Partial<Department>) => void;
   deleteDepartment: (id: string) => void;
   addProject: (project: Omit<Project, 'id'>) => void;
+  updateProject: (id: string, updates: Partial<Project>) => void;
+  deleteProject: (id: string) => void;
   addTask: (task: Omit<Task, 'id'>) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
@@ -40,23 +43,27 @@ interface DataContextType {
   getProjectsByDepartment: (deptId: string) => Project[];
   getTasksByProject: (projectId: string) => Task[];
   getTasksByUser: (userId: string) => Task[];
+  getTasksByDepartment: (deptId: string) => Task[];
 }
 
 const DataContext = createContext<DataContextType | null>(null);
 
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { getAccessToken } = useAuth();
+  const { getAccessToken, currentUser, currentRole } = useAuth();
 
   const [roles, setRoles] = useState<Role[]>([...seedRoles]);
   const [departments, setDepartments] = useState<Department[]>([...seedDepartments]);
   const [users, setUsers] = useState<User[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [kpis] = useState<KPI[]>([...seedKpis]);
+  const [kpis, setKpis] = useState<KPI[]>([...seedKpis]);
 
   // Fetch real data on mount
   useEffect(() => {
     const fetchData = async () => {
+      // Only fetch data if we have a valid access token or if endpoints are public
+      const token = getAccessToken();
+      
       try {
         // Fetch roles (public endpoint)
         const rolesRes = await apiFetch('/roles');
@@ -72,25 +79,46 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setDepartments(deptData);
         }
 
-        // Fetch users (requires authentication)
-        const usersRes = await apiFetch('/users', { getAccessToken });
-        if (usersRes.ok) {
-          const usersData = await usersRes.json();
-          setUsers(usersData);
-        }
+        // Only fetch protected endpoints if we have a token
+        if (token) {
+          // Fetch users (requires authentication)
+          const usersRes = await apiFetch('/users', { getAccessToken });
+          if (usersRes.ok) {
+            const usersData = await usersRes.json();
+            setUsers(usersData);
+          } else if (usersRes.status === 401) {
+            console.warn('Users fetch: Unauthorized - token may be expired');
+            // Token expired, will be handled by AuthContext refresh
+          }
 
-        // Fetch projects (requires authentication)
-        const projectsRes = await apiFetch('/projects', { getAccessToken });
-        if (projectsRes.ok) {
-          const projectsData = await projectsRes.json();
-          setProjects(projectsData);
-        }
+          // Fetch KPIs (requires authentication)
+          const kpisRes = await apiFetch('/kpis', { getAccessToken });
+          if (kpisRes.ok) {
+            const kpisData = await kpisRes.json();
+            setKpis(kpisData);
+          } else if (kpisRes.status === 401) {
+            console.warn('KPIs fetch: Unauthorized - token may be expired');
+          }
 
-        // Fetch tasks (requires authentication)
-        const tasksRes = await apiFetch('/tasks', { getAccessToken });
-        if (tasksRes.ok) {
-          const tasksData = await tasksRes.json();
-          setTasks(tasksData);
+          // Fetch projects (now public, but still use auth for consistency)
+          const projectsRes = await apiFetch('/projects', { getAccessToken });
+          if (projectsRes.ok) {
+            const projectsData = await projectsRes.json();
+            setProjects(projectsData);
+          } else if (projectsRes.status === 401) {
+            console.warn('Projects fetch: Unauthorized - token may be expired');
+          }
+
+          // Fetch tasks (requires authentication)
+          const tasksRes = await apiFetch('/tasks', { getAccessToken });
+          if (tasksRes.ok) {
+            const tasksData = await tasksRes.json();
+            setTasks(tasksData);
+          } else if (tasksRes.status === 401) {
+            console.warn('Tasks fetch: Unauthorized - token may be expired');
+          }
+        } else {
+          console.log('No access token available - skipping protected endpoints');
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -115,6 +143,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
           roleId: user.roleId,
           departmentId: user.departmentId,
           managerId: user.managerId,
+          authUserId: user.authUserId,
+          createdAt: user.createdAt,
         }),
       });
 
@@ -232,6 +262,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProjects(prev => [...prev, { ...project, id: crypto.randomUUID() }]);
   }, []);
 
+  const updateProject = useCallback((id: string, updates: Partial<Project>) => {
+    setProjects(prev => prev.map(p => (p.id === id ? { ...p, ...updates } : p)));
+  }, []);
+
+  const deleteProject = useCallback((id: string) => {
+    setProjects(prev => prev.filter(p => p.id !== id));
+  }, []);
+
   const addTask = useCallback((task: Omit<Task, 'id'>) => {
     setTasks(prev => [...prev, { ...task, id: crypto.randomUUID() }]);
   }, []);
@@ -264,17 +302,25 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const getProjectsByDepartment = useCallback((deptId: string) => projects.filter(p => p.departmentId === deptId), [projects]);
   const getTasksByProject = useCallback((projectId: string) => tasks.filter(t => t.projectId === projectId), [tasks]);
   const getTasksByUser = useCallback((userId: string) => tasks.filter(t => t.assignedTo === userId), [tasks]);
+  const getTasksByDepartment = useCallback((deptId: string) => {
+    // Get projects in this department first
+    const deptProjects = projects.filter(p => p.departmentId === deptId);
+    // Then get tasks for those projects
+    const deptProjectIds = deptProjects.map(p => p.id);
+    return tasks.filter(t => deptProjectIds.includes(t.projectId));
+  }, [projects, tasks]);
 
   return (
     <DataContext.Provider
       value={{
         roles, departments, users, projects, tasks, kpis,
-        addUser, updateUser, deleteUser, setUsers,
+        addUser, updateUser, deleteUser, setUsers, setKpis,
         addDepartment, updateDepartment, deleteDepartment,
-        addProject, addTask, updateTask, deleteTask,
+        addProject, updateProject, deleteProject,
+        addTask, updateTask, deleteTask,
         addRole, updateRole, deleteRole,
         getUser, getDepartment, getRoleName, getInitials,
-        getUsersByDepartment, getProjectsByDepartment, getTasksByProject, getTasksByUser,
+        getUsersByDepartment, getProjectsByDepartment, getTasksByProject, getTasksByUser, getTasksByDepartment,
       }}
     >
       {children}
