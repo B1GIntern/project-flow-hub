@@ -79,8 +79,8 @@ export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: Creat
         assignedTo: assignedTo,
         priority,
         status,
-        dueDate: dueDate || undefined,
-        createdBy: currentUser!.id as string,
+        dueDate: dueDate || null,
+        createdBy: String(currentUser!.id),
         createdAt: new Date().toISOString(),
         completedAt: null
       });

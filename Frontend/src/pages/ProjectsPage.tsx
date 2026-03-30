@@ -40,7 +40,7 @@ const ProjectsPage = () => {
   const scopedDeptIds = currentRole === 'ADMIN'
     ? departments.map(d => d.id)
     : currentRole === 'DEPT_HEAD'
-      ? departments.filter(d => d.deptHeadId === currentUser!.id).map(d => d.id)
+      ? currentUser!.departmentId ? [currentUser!.departmentId] : []
       : currentUser!.departmentId ? [currentUser!.departmentId] : [];
 
   const scopedProjects = projects.filter(p => scopedDeptIds.includes(p.departmentId));
@@ -293,6 +293,8 @@ const ProjectsPage = () => {
       </Dialog>
 
       <CreateTaskDialog open={createTaskOpen} onOpenChange={setCreateTaskOpen} defaultProjectId={createTaskProjectId} />
+
+      <CreateProjectDialog open={createProjectOpen} onOpenChange={setCreateProjectOpen} />
 
       {/* Edit Project Modal */}
       <Dialog open={!!editProject} onOpenChange={(open) => { if (!open) { setEditProject(undefined); setEditProjectData(null); } }}>

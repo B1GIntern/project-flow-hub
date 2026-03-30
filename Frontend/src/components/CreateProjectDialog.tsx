@@ -20,21 +20,34 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
   defaultProjectId 
 }) => {
   const { departments, addProject } = useData();
+  const { currentUser, currentRole } = useAuth();
   const [name, setName] = useState('');
   const [departmentId, setDepartmentId] = useState<string | undefined>(defaultProjectId);
   const [status, setStatus] = useState<ProjectStatus>('PLANNING');
 
+  // Filter departments based on user role
+  const availableDepartments = currentRole === 'ADMIN' 
+    ? departments 
+    : currentRole === 'DEPT_HEAD' 
+      ? departments.filter(d => d.id === currentUser?.departmentId)
+      : departments.filter(d => d.id === currentUser?.departmentId);
+
   useEffect(() => {
     if (open) {
       setName('');
-      setDepartmentId(defaultProjectId ? String(defaultProjectId) : undefined);
+      // For DEPT_HEAD, default to their department
+      if (currentRole === 'DEPT_HEAD' && currentUser?.departmentId) {
+        setDepartmentId(currentUser.departmentId);
+      } else {
+        setDepartmentId(defaultProjectId ? String(defaultProjectId) : undefined);
+      }
       setStatus('PLANNING');
     } else {
       setName('');
       setDepartmentId(undefined);
       setStatus('PLANNING');
     }
-  }, [open, defaultProjectId]);
+  }, [open, defaultProjectId, currentRole, currentUser?.departmentId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,7 +81,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Create New Project</DialogTitle>
+          <DialogTitle>New Project</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-2">
@@ -86,10 +99,10 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
               <Label htmlFor="department">Department</Label>
               <Select value={departmentId?.toString()} onValueChange={(value) => setDepartmentId(value || undefined)}>
                 <SelectTrigger className="w-full">
-                  {departmentId ? departments.find(d => d.id === departmentId)?.name : 'Select department...'}
+                  <SelectValue placeholder="Select department..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {departments.map(dept => (
+                  {availableDepartments.map(dept => (
                     <SelectItem key={dept.id} value={dept.id.toString()}>
                       {dept.name}
                     </SelectItem>
@@ -101,10 +114,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
               <Label htmlFor="status">Status</Label>
               <Select value={status} onValueChange={(v) => setStatus(v as ProjectStatus)}>
                 <SelectTrigger className="w-full">
-                  <SelectItem value="PLANNING">Planning</SelectItem>
-                  <SelectItem value="ACTIVE">Active</SelectItem>
-                  <SelectItem value="COMPLETED">Completed</SelectItem>
-                  <SelectItem value="ON_HOLD">On Hold</SelectItem>
+                  <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="PLANNING">Planning</SelectItem>
@@ -116,8 +126,8 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
             </div>
           </div>
           <div className="flex justify-end space-x-2">
-            <Button type="submit" className="bg-violet-500 hover:bg-violet-600 text-white" onClick={handleSubmit}>
-              Create Project
+            <Button type="submit" className="bg-[#9333EA] hover:bg-[#7c3aed] text-white" onClick={handleSubmit}>
+              Create
             </Button>
             <Button variant="outline" className="border-violet-500 text-violet-500 hover:bg-violet-50" onClick={() => onOpenChange(false)}>
               Cancel

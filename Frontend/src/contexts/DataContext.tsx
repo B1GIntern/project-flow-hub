@@ -26,10 +26,10 @@ interface DataContextType {
   updateDepartment: (id: string, updates: Partial<Department>) => Promise<void>;
   deleteDepartment: (id: string) => Promise<void>;
   reassignUsers: (fromDepartmentId: string, toDepartmentId: string | null) => Promise<void>;
-  addProject: (project: Omit<Project, 'id'>) => void;
+  addProject: (project: Omit<Project, 'id'>) => Promise<void>;
   updateProject: (id: string, updates: Partial<Project>) => void;
   deleteProject: (id: string) => void;
-  addTask: (task: Omit<Task, 'id'>) => void;
+  addTask: (task: Omit<Task, 'id'>) => Promise<void>;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   addRole: (role: Omit<Role, 'id'>) => void;
@@ -392,9 +392,37 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [getAccessToken]);
 
-  const addProject = useCallback((project: Omit<Project, 'id'>) => {
-    setProjects(prev => [...prev, { ...project, id: crypto.randomUUID() }]);
-  }, []);
+  const addProject = useCallback(async (project: Omit<Project, 'id'>) => {
+    try {
+      console.log('Creating project:', project);
+      
+      const res = await apiFetch('/projects', {
+        method: 'POST',
+        getAccessToken,
+        body: JSON.stringify({
+          name: project.name,
+          departmentId: project.departmentId,
+          status: project.status
+        }),
+      });
+
+      console.log('Response status:', res.status);
+      
+      if (res.ok) {
+        const newProject = await res.json();
+        console.log('Project created successfully:', newProject);
+        // Add real DB project into local state
+        setProjects(prev => [...prev, newProject]);
+      } else {
+        const err = await res.json();
+        console.error('Failed to create project:', err);
+        alert(`Failed to create project: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to create project:', err);
+      alert('Failed to create project: Network error');
+    }
+  }, [getAccessToken]);
 
   const updateProject = useCallback((id: string, updates: Partial<Project>) => {
     setProjects(prev => prev.map(p => (p.id === id ? { ...p, ...updates } : p)));
@@ -404,9 +432,41 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setProjects(prev => prev.filter(p => p.id !== id));
   }, []);
 
-  const addTask = useCallback((task: Omit<Task, 'id'>) => {
-    setTasks(prev => [...prev, { ...task, id: crypto.randomUUID() }]);
-  }, []);
+  const addTask = useCallback(async (task: Omit<Task, 'id'>) => {
+    try {
+      console.log('Creating task:', task);
+      
+      const res = await apiFetch('/tasks', {
+        method: 'POST',
+        getAccessToken,
+        body: JSON.stringify({
+          title: task.title,
+          description: task.description,
+          projectId: task.projectId,
+          assignedTo: task.assignedTo,
+          priority: task.priority,
+          status: task.status,
+          dueDate: task.dueDate
+        }),
+      });
+
+      console.log('Response status:', res.status);
+      
+      if (res.ok) {
+        const newTask = await res.json();
+        console.log('Task created successfully:', newTask);
+        // Add real DB task into local state
+        setTasks(prev => [...prev, newTask]);
+      } else {
+        const err = await res.json();
+        console.error('Failed to create task:', err);
+        alert(`Failed to create task: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to create task:', err);
+      alert('Failed to create task: Network error');
+    }
+  }, [getAccessToken]);
 
   const updateTask = useCallback((id: string, updates: Partial<Task>) => {
     setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
