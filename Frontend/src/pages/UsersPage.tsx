@@ -5,6 +5,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CreateUserDialog } from '@/components/CreateUserDialog';
 import { EditUserDialog } from '@/components/EditUserDialog';
@@ -22,6 +23,7 @@ const UsersPage = () => {
   
   // Search and pagination states
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 8;
 
@@ -29,18 +31,23 @@ const UsersPage = () => {
   const getDeptHeadOf = (userId: string) =>
     departments.filter(d => d.deptHeadId === userId).map(d => d.name);
 
-  // Filter users based on search query
+  // Filter users based on search query and department
   const filteredUsers = users.filter(user => {
     const query = searchQuery.toLowerCase();
     const role = getRoleName(user.roleId);
     const dept = user.departmentId ? getDepartment(user.departmentId) : null;
     
-    return (
+    const matchesSearch = 
       user.fullName.toLowerCase().includes(query) ||
       user.email.toLowerCase().includes(query) ||
       role.toLowerCase().includes(query) ||
-      (dept?.name.toLowerCase().includes(query) || false)
-    );
+      (dept?.name.toLowerCase().includes(query) || false);
+    
+    const matchesDepartment = 
+      selectedDepartmentId === 'all' || 
+      user.departmentId === selectedDepartmentId;
+    
+    return matchesSearch && matchesDepartment;
   });
 
   // Pagination logic
@@ -69,14 +76,37 @@ const UsersPage = () => {
         )}
       </div>
 
-      {/* Search Bar */}
-      <div className="w-full max-w-md">
-        <Input
-          placeholder="Search by name, email, or role..."
-          value={searchQuery}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          className="border-violet-200 focus:border-violet-500 focus:ring-violet-500"
-        />
+      {/* Search Bar and Department Filter */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex-1">
+          <Input
+            placeholder="Search by name, email, or role..."
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+            className="border-violet-200 focus:border-violet-500 focus:ring-violet-500"
+          />
+        </div>
+        <div className="w-48">
+          <Select 
+            value={selectedDepartmentId}
+            onValueChange={(value) => {
+              setSelectedDepartmentId(value);
+              setCurrentPage(1);
+            }}
+          >
+            <SelectTrigger className="w-48 border-violet-200 focus:border-violet-500 focus:ring-violet-500">
+              <SelectValue placeholder="All Departments" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Departments</SelectItem>
+              {departments.map(dept => (
+                <SelectItem key={dept.id} value={dept.id}>
+                  {dept.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="surface-card overflow-x-auto">

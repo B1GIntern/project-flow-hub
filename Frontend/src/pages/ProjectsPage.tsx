@@ -155,7 +155,7 @@ const ProjectsPage = () => {
                       <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Status</span>
                       <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Due</span>
                       <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Priority</span>
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Assignee</span>
+                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Assigned To</span>
                     </div>
                     {projectTasks.map(task => {
                       const assignee = getUser(task.assignedTo);
@@ -464,7 +464,7 @@ const ProjectsPage = () => {
                 </Select>
               </div>
               <div className="flex justify-end space-x-2 pt-2">
-                <Button onClick={() => { if (editTask) { updateTask(editTask.id, editTask); setEditTask(null); } }} className="bg-violet-500 hover:bg-violet-600 text-white">
+                <Button onClick={async () => { if (editTask) { await updateTask(editTask.id, editTask); setEditTask(null); } }} className="bg-violet-500 hover:bg-violet-600 text-white">
                   Save
                 </Button>
                 <Button variant="outline" className="border-violet-500 text-violet-500 hover:bg-violet-50" onClick={() => { setEditTask(null); }}>
@@ -493,7 +493,7 @@ const ProjectsPage = () => {
               </Button>
               <Button 
                 variant="destructive" 
-                onClick={() => { if (deleteTaskId) { deleteTask(deleteTaskId); setDeleteTaskId(null); setDeleteTaskName(''); } }}
+                onClick={async () => { if (deleteTaskId) { await deleteTask(deleteTaskId); setDeleteTaskId(null); setDeleteTaskName(''); } }}
               >
                 Delete
               </Button>

@@ -17,6 +17,7 @@ interface DataContextType {
   projects: Project[];
   tasks: Task[];
   kpis: KPI[];
+  setRoles: (roles: Role[]) => void;
   addUser: (user: Omit<User, 'id'>) => Promise<void>;
   updateUser: (id: string, updates: Partial<User>) => Promise<void>;
   deleteUser: (id: string, force?: boolean) => Promise<{ success: boolean; error?: string }>;
@@ -27,14 +28,14 @@ interface DataContextType {
   deleteDepartment: (id: string) => Promise<void>;
   reassignUsers: (fromDepartmentId: string, toDepartmentId: string | null) => Promise<void>;
   addProject: (project: Omit<Project, 'id'>) => Promise<void>;
-  updateProject: (id: string, updates: Partial<Project>) => void;
-  deleteProject: (id: string) => void;
+  updateProject: (id: string, updates: Partial<Project>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
   addTask: (task: Omit<Task, 'id'>) => Promise<void>;
-  updateTask: (id: string, updates: Partial<Task>) => void;
-  deleteTask: (id: string) => void;
-  addRole: (role: Omit<Role, 'id'>) => void;
-  updateRole: (id: string, updates: Partial<Role>) => void;
-  deleteRole: (id: string) => void;
+  updateTask: (id: string, updates: Partial<Task>) => Promise<void>;
+  deleteTask: (id: string) => Promise<void>;
+  addRole: (role: Omit<Role, 'id'>) => Promise<void>;
+  updateRole: (id: string, updates: Partial<Role>) => Promise<void>;
+  deleteRole: (id: string) => Promise<void>;
   getUser: (id: string) => User | undefined;
   getDepartment: (id: string) => Department | undefined;
   getRoleName: (roleId: string) => string;
@@ -424,13 +425,63 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [getAccessToken]);
 
-  const updateProject = useCallback((id: string, updates: Partial<Project>) => {
-    setProjects(prev => prev.map(p => (p.id === id ? { ...p, ...updates } : p)));
-  }, []);
+  const updateProject = useCallback(async (id: string, updates: Partial<Project>) => {
+    try {
+      console.log('Updating project:', id, updates);
+      
+      const res = await apiFetch(`/projects/${id}`, {
+        method: 'PUT',
+        getAccessToken,
+        body: JSON.stringify({
+          name: updates.name,
+          departmentId: updates.departmentId,
+          status: updates.status
+        }),
+      });
 
-  const deleteProject = useCallback((id: string) => {
-    setProjects(prev => prev.filter(p => p.id !== id));
-  }, []);
+      console.log('Response status:', res.status);
+      
+      if (res.ok) {
+        const updatedProject = await res.json();
+        console.log('Project updated successfully:', updatedProject);
+        // Update local state with real DB response
+        setProjects(prev => prev.map(p => (p.id === id ? updatedProject : p)));
+      } else {
+        const err = await res.json();
+        console.error('Failed to update project:', err);
+        alert(`Failed to update project: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to update project:', err);
+      alert('Failed to update project: Network error');
+    }
+  }, [getAccessToken]);
+
+  const deleteProject = useCallback(async (id: string) => {
+    try {
+      console.log('Deleting project:', id);
+      
+      const res = await apiFetch(`/projects/${id}`, {
+        method: 'DELETE',
+        getAccessToken
+      });
+
+      console.log('Response status:', res.status);
+      
+      if (res.ok || res.status === 204) {
+        console.log('Project deleted successfully');
+        // Remove from local state
+        setProjects(prev => prev.filter(p => p.id !== id));
+      } else {
+        const err = await res.json();
+        console.error('Failed to delete project:', err);
+        alert(`Failed to delete project: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to delete project:', err);
+      alert('Failed to delete project: Network error');
+    }
+  }, [getAccessToken]);
 
   const addTask = useCallback(async (task: Omit<Task, 'id'>) => {
     try {
@@ -468,25 +519,154 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [getAccessToken]);
 
-  const updateTask = useCallback((id: string, updates: Partial<Task>) => {
-    setTasks(prev => prev.map(t => (t.id === id ? { ...t, ...updates } : t)));
-  }, []);
+  const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
+    try {
+      console.log('Updating task:', id, updates);
+      
+      const res = await apiFetch(`/tasks/${id}`, {
+        method: 'PUT',
+        getAccessToken,
+        body: JSON.stringify({
+          title: updates.title,
+          description: updates.description,
+          projectId: updates.projectId,
+          assignedTo: updates.assignedTo,
+          priority: updates.priority,
+          status: updates.status,
+          dueDate: updates.dueDate,
+          completedAt: updates.completedAt
+        }),
+      });
 
-  const deleteTask = useCallback((id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
-  }, []);
+      console.log('Response status:', res.status);
+      
+      if (res.ok) {
+        const updatedTask = await res.json();
+        console.log('Task updated successfully:', updatedTask);
+        // Update local state with real DB response
+        setTasks(prev => prev.map(t => (t.id === id ? updatedTask : t)));
+      } else {
+        const err = await res.json();
+        console.error('Failed to update task:', err);
+        alert(`Failed to update task: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to update task:', err);
+      alert('Failed to update task: Network error');
+    }
+  }, [getAccessToken]);
 
-  const addRole = useCallback((role: Omit<Role, 'id'>) => {
-    setRoles(prev => [...prev, { ...role, id: crypto.randomUUID() }]);
-  }, []);
+  const deleteTask = useCallback(async (id: string) => {
+    try {
+      console.log('Deleting task:', id);
+      
+      const res = await apiFetch(`/tasks/${id}`, {
+        method: 'DELETE',
+        getAccessToken
+      });
 
-  const updateRole = useCallback((id: string, updates: Partial<Role>) => {
-    setRoles(prev => prev.map(r => (r.id === id ? { ...r, ...updates } : r)));
-  }, []);
+      console.log('Response status:', res.status);
+      
+      if (res.ok || res.status === 204) {
+        console.log('Task deleted successfully');
+        // Remove from local state
+        setTasks(prev => prev.filter(t => t.id !== id));
+      } else {
+        const err = await res.json();
+        console.error('Failed to delete task:', err);
+        alert(`Failed to delete task: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+      alert('Failed to delete task: Network error');
+    }
+  }, [getAccessToken]);
 
-  const deleteRole = useCallback((id: string) => {
-    setRoles(prev => prev.filter(r => r.id !== id));
-  }, []);
+  const addRole = useCallback(async (role: Omit<Role, 'id'>) => {
+    try {
+      console.log('Creating role:', role);
+      
+      const res = await apiFetch('/roles', {
+        method: 'POST',
+        getAccessToken,
+        body: JSON.stringify({
+          name: role.name
+        }),
+      });
+
+      console.log('Response status:', res.status);
+      
+      if (res.ok) {
+        const newRole = await res.json();
+        console.log('Role created successfully:', newRole);
+        // Add real DB role into local state
+        setRoles(prev => [...prev, newRole]);
+      } else {
+        const err = await res.json();
+        console.error('Failed to create role:', err);
+        alert(`Failed to create role: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to create role:', err);
+      alert('Failed to create role: Network error');
+    }
+  }, [getAccessToken]);
+
+  const updateRole = useCallback(async (id: string, updates: Partial<Role>) => {
+    try {
+      console.log('Updating role:', id, updates);
+      
+      const res = await apiFetch(`/roles/${id}`, {
+        method: 'PUT',
+        getAccessToken,
+        body: JSON.stringify({
+          name: updates.name
+        }),
+      });
+
+      console.log('Response status:', res.status);
+      
+      if (res.ok) {
+        const updatedRole = await res.json();
+        console.log('Role updated successfully:', updatedRole);
+        // Update local state with real DB response
+        setRoles(prev => prev.map(r => (r.id === id ? updatedRole : r)));
+      } else {
+        const err = await res.json();
+        console.error('Failed to update role:', err);
+        alert(`Failed to update role: ${err.error || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error('Failed to update role:', err);
+      alert('Failed to update role: Network error');
+    }
+  }, [getAccessToken]);
+
+  const deleteRole = useCallback(async (id: string) => {
+    try {
+      console.log('Deleting role with id:', id);
+      
+      const res = await apiFetch(`/roles/${id}`, {
+        method: 'DELETE',
+        getAccessToken
+      });
+
+      console.log('Response status:', res.status);
+      
+      if (res.ok || res.status === 204) {
+        console.log('Role deleted successfully');
+        // Remove from local state AFTER successful backend deletion
+        setRoles(prev => prev.filter(r => r.id !== id));
+      } else {
+        const err = await res.json();
+        console.error('Failed to delete role:', err);
+        // No browser alert - just log to console
+      }
+    } catch (err) {
+      console.error('Failed to delete role:', err);
+      // No browser alert - just log to console
+    }
+  }, [getAccessToken]);
 
   const getUser = useCallback((id: string) => users.find(u => u.id === id), [users]);
   const getDepartment = useCallback((id: string) => departments.find(d => d.id === id), [departments]);
@@ -508,6 +688,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     <DataContext.Provider
       value={{
         roles, departments, users, projects, tasks, kpis,
+        setRoles,
         addUser, updateUser, deleteUser, setUsers, setKpis,
         addDepartment, updateDepartment, deleteDepartment, reassignUsers,
         addProject, updateProject, deleteProject,

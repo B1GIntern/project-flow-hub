@@ -9,3 +9,8 @@ rolesRoutes.get('/', rolesController.list);
 
 // Protect other role operations
 rolesRoutes.use(requireAuth);
+
+// Add CRUD routes
+rolesRoutes.post('/', rolesController.create);
+rolesRoutes.put('/:id', rolesController.update);
+rolesRoutes.delete('/:id', rolesController.delete);

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiFetch } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -8,8 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Plus, Pencil, Trash2, Shield } from 'lucide-react';
 
 const RolesPage = () => {
-  const { roles, addRole, updateRole, deleteRole, users } = useData();
-  const { hasAccess } = useAuth();
+  const { roles, addRole, updateRole, deleteRole, users, setRoles } = useData();
+  const { hasAccess, getAccessToken } = useAuth();
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null); 
@@ -22,18 +23,34 @@ const RolesPage = () => {
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!roleName.trim()) return;
-    addRole({ name: roleName.trim().toUpperCase().replace(/\s+/g, '_') });
+    const processedRoleName = roleName.trim().replace(/\s+/g, '_').toUpperCase();
+    console.log('Creating role with payload:', { name: processedRoleName });
+    addRole({ name: processedRoleName });
     setRoleName('');
     setCreateOpen(false);
   };
 
-  const handleEdit = (e: React.FormEvent) => {
+  const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!roleName.trim() || !editId) return;
-    updateRole(editId, { name: roleName.trim().toUpperCase().replace(/\s+/g, '_') });
-    setRoleName('');
-    setEditOpen(false);
-    setEditId(null);
+    try {
+      const res = await apiFetch(`/roles/${editId}`, {
+        method: 'PUT',
+        getAccessToken,
+        body: JSON.stringify({ name: roleName.trim().replace(/\s+/g, '_') })
+      });
+      
+      if (res.ok) {
+        updateRole(editId, { name: roleName.trim().replace(/\s+/g, '_') });
+        setRoleName('');
+        setEditOpen(false);
+        setEditId(null);
+      } else {
+        console.error('Failed to update role');
+      }
+    } catch (err) {
+      console.error('Error updating role:', err);
+    }
   };
 
   const openEdit = (id: string, name: string) => { 
@@ -44,7 +61,6 @@ const RolesPage = () => {
 
   const handleDelete = (id: string) => { 
     const usersWithRole = users.filter(u => u.roleId === id); 
-    if (usersWithRole.length > 0) return; 
     const role = roles.find(r => r.id === id);
     if (role) {
       setDeleteRoleId(id);
@@ -52,11 +68,31 @@ const RolesPage = () => {
     }
   };
 
-  const confirmDelete = () => {
-    if (deleteRoleId) {
-      deleteRole(deleteRoleId);
-      setDeleteRoleId(null);
-      setDeleteRoleName('');
+  const confirmDelete = async () => {
+    if (!deleteRoleId) return;
+    try {
+      console.log('Confirming delete for role:', { id: deleteRoleId, name: deleteRoleName });
+      
+      const res = await apiFetch(`/roles/${deleteRoleId}`, {
+        method: 'DELETE',
+        getAccessToken
+      });
+      
+      console.log('Delete response status:', res.status);
+      
+      if (res.ok || res.status === 204) {
+        console.log('Delete successful, removing from UI state');
+        // Remove from UI state directly in RolesPage
+        setRoles(prev => prev.filter(r => r.id !== deleteRoleId));
+        setDeleteRoleId(null);
+        setDeleteRoleName('');
+      } else {
+        console.error('Delete failed, keeping role in UI');
+        const err = await res.json();
+        console.error('Failed to delete role:', err);
+      }
+    } catch (err) {
+      console.error('Error deleting role:', err);
     }
   };
 
@@ -100,7 +136,6 @@ const RolesPage = () => {
                       size="icon"
                       className="h-7 w-7 text-red-600 hover:text-red-800 hover:bg-red-50 cursor-pointer"
                       onClick={() => handleDelete(role.id)}
-                      disabled={usersWithRole.length > 0}
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
