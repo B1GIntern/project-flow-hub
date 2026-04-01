@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiFetch } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,22 +8,31 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ProjectStatus } from '@/types/models';
 
+interface Department {
+  id: string;
+  name: string;
+}
+
 interface CreateProjectDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultProjectId?: string;
+  departments: Department[];
+  onSuccess?: () => void;
 }
 
 export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({ 
   open, 
   onOpenChange, 
-  defaultProjectId 
+  defaultProjectId,
+  departments,
+  onSuccess
 }) => {
-  const { departments, addProject } = useData();
-  const { currentUser, currentRole } = useAuth();
+  const { getAccessToken, currentUser, currentRole } = useAuth();
   const [name, setName] = useState('');
   const [departmentId, setDepartmentId] = useState<string | undefined>(defaultProjectId);
   const [status, setStatus] = useState<ProjectStatus>('PLANNING');
+  const [loading, setLoading] = useState(false);
 
   // Filter departments based on user role
   const availableDepartments = currentRole === 'ADMIN' 
@@ -51,7 +60,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
+    if (!name.trim() || loading) {
       alert('Project name is required');
       return;
     }
@@ -60,20 +69,33 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
       return;
     }
 
+    setLoading(true);
     try {
-      await addProject({
-        name: name.trim(),
-        departmentId,
-        status,
-        createdAt: new Date().toISOString()
+      const res = await apiFetch('/projects', {
+        method: 'POST',
+        getAccessToken,
+        body: JSON.stringify({
+          name: name.trim(),
+          departmentId,
+          status,
+        }),
       });
-      setName('');
-      setDepartmentId(undefined);
-      setStatus('PLANNING');
-      onOpenChange(false);
+
+      if (res.ok) {
+        setName('');
+        setDepartmentId(undefined);
+        setStatus('PLANNING');
+        onOpenChange(false);
+        onSuccess?.();
+      } else {
+        const err = await res.json();
+        alert(`Failed to create project: ${err.error || 'Unknown error'}`);
+      }
     } catch (error) {
       console.error('Failed to create project:', error);
-      alert('Failed to create project. Please try again.');
+      alert('Failed to create project: Network error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -93,11 +115,12 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter project name"
                 className="w-full"
+                disabled={loading}
               />
             </div>
             <div>
               <Label htmlFor="department">Department</Label>
-              <Select value={departmentId?.toString()} onValueChange={(value) => setDepartmentId(value || undefined)}>
+              <Select value={departmentId?.toString()} onValueChange={(value) => setDepartmentId(value || undefined)} disabled={loading}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select department..." />
                 </SelectTrigger>
@@ -112,7 +135,7 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
             </div>
             <div>
               <Label htmlFor="status">Status</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as ProjectStatus)}>
+              <Select value={status} onValueChange={(v) => setStatus(v as ProjectStatus)} disabled={loading}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
@@ -126,10 +149,10 @@ export const CreateProjectDialog: React.FC<CreateProjectDialogProps> = ({
             </div>
           </div>
           <div className="flex justify-end space-x-2">
-            <Button type="submit" className="bg-[#9333EA] hover:bg-[#7c3aed] text-white" onClick={handleSubmit}>
-              Create
+            <Button type="submit" className="bg-[#9333EA] hover:bg-[#7c3aed] text-white" onClick={handleSubmit} disabled={loading}>
+              {loading ? 'Creating...' : 'Create'}
             </Button>
-            <Button variant="outline" className="border-violet-500 text-violet-500 hover:bg-violet-50" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" className="border-violet-500 text-violet-500 hover:bg-violet-50" onClick={() => onOpenChange(false)} disabled={loading}>
               Cancel
             </Button>
           </div>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useMyTeam } from '@/hooks/useMyTeam';
 import { Building2, Users, Shield } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,21 @@ import { ReassignUsersDialog } from '@/components/ReassignUsersDialog';
 
 const MyTeamPage = () => {
   const { currentUser, currentRole, hasAccess } = useAuth();
-  const { departments, users, getUser, getUsersByDepartment, getProjectsByDepartment, getInitials, updateDepartment, deleteDepartment, getRoleName, reassignUsers } = useData();
+  const { 
+    departments, 
+    users, 
+    getUser, 
+    getUsersByDepartment, 
+    getProjectsByDepartment, 
+    getInitials, 
+    updateDepartment, 
+    deleteDepartment, 
+    getRoleName, 
+    reassignUsers,
+    loading,
+    error,
+    refreshData
+  } = useMyTeam();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -23,6 +37,43 @@ const MyTeamPage = () => {
   const [editHeadId, setEditHeadId] = useState('');
 
   if (!currentUser) return null;
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-lg sm:text-xl font-semibold">My Team</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Loading...</p>
+          </div>
+        </div>
+        <div className="surface-card p-8 text-center">
+          <p className="text-muted-foreground">Loading team data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-lg sm:text-xl font-semibold">My Team</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Error loading data</p>
+          </div>
+        </div>
+        <div className="surface-card p-8 text-center">
+          <p className="text-red-600 mb-4">Failed to load team data: {error}</p>
+          <Button onClick={refreshData} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   // Get all departments for current user (handle single departmentId)
   const userDepartmentIds = currentUser.departmentId 
@@ -86,6 +137,9 @@ const MyTeamPage = () => {
       
       setReassignDialogOpen(false);
       setDeptToDelete(null);
+      
+      // Refresh data to reflect changes
+      await refreshData();
     } catch (error) {
       console.error('Failed to reassign users and delete department:', error);
       alert('Failed to reassign users and delete department. Please try again.');
@@ -99,6 +153,9 @@ const MyTeamPage = () => {
       await deleteDepartment(deptToDelete.id);
       setDeleteDialogOpen(false);
       setDeptToDelete(null);
+      
+      // Refresh data to reflect changes
+      await refreshData();
     } catch (error) {
       console.error('Failed to delete department:', error);
       alert('Failed to delete department. Please try again.');
@@ -228,11 +285,18 @@ const MyTeamPage = () => {
         })}
       </div>
 
-      <CreateDepartmentDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <CreateDepartmentDialog 
+        open={dialogOpen} 
+        onOpenChange={setDialogOpen}
+        users={users}
+        onSuccess={refreshData}
+      />
       <ReassignUsersDialog 
         open={reassignDialogOpen} 
         onOpenChange={setReassignDialogOpen}
         department={deptToDelete}
+        departments={departments}
+        departmentUsers={deptToDelete ? getUsersByDepartment(deptToDelete.id) : []}
         onReassignAndDelete={handleReassignAndDelete}
       />
 

@@ -5,7 +5,7 @@ import { Menu, X, LayoutDashboard, Building2, FolderKanban, Users, Shield, BarCh
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { getInitials } from '@/lib/utils';
 import {
   LogOut,
 } from 'lucide-react';
@@ -14,7 +14,6 @@ export const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children })
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const { currentUser, currentRole, logout } = useAuth();
-  const { getInitials } = useData();
   const location = useLocation();
 
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);

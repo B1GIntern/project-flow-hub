@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useData } from '@/contexts/DataContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiFetch } from '@/lib/api';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,15 +9,43 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TaskPriority, TaskStatus } from '@/types/models';
 
+interface User {
+  id: string;
+  fullName: string;
+  departmentId: string;
+}
+
+interface Department {
+  id: string;
+  name: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  departmentId: string;
+}
+
 interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultProjectId?: string;
+  projects: Project[];
+  users: User[];
+  departments: Department[];
+  onSuccess?: () => void;
 }
 
-export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: CreateTaskDialogProps) => {
-  const { addTask, projects, users, departments } = useData();
-  const { currentUser, currentRole } = useAuth();
+export const CreateTaskDialog = ({ 
+  open, 
+  onOpenChange, 
+  defaultProjectId,
+  projects,
+  users,
+  departments,
+  onSuccess
+}: CreateTaskDialogProps) => {
+  const { getAccessToken, currentUser, currentRole } = useAuth();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -26,6 +54,7 @@ export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: Creat
   const [priority, setPriority] = useState<TaskPriority>('MEDIUM');
   const [status, setStatus] = useState<TaskStatus>('TODO');
   const [dueDate, setDueDate] = useState('');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (open && defaultProjectId) setProjectId(defaultProjectId);
@@ -50,48 +79,41 @@ export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: Creat
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    console.log('=== Task Creation Started ===');
-    console.log('Form data:', { title, description, projectId, assignedTo, priority, status, dueDate });
-    console.log('Current user:', currentUser);
-    
-    // Validation
-    if (!title || !projectId || !assignedTo || !dueDate) {
-      console.log('Validation failed - missing fields:', { 
-        title: !!title, 
-        projectId: !!projectId, 
-        assignedTo: !!assignedTo, 
-        dueDate: !!dueDate 
-      });
+    if (!title || !projectId || !assignedTo || !dueDate || loading) {
       alert('Task title, project, assigned user, and due date are required');
       return;
     }
 
+    setLoading(true);
     try {
-      console.log('Calling addTask with data:', {
-        title: title.trim(),
-        description: description.trim(),
-        });
-      
-      addTask({
-        title: title.trim(),
-        description: description.trim(),
-        projectId: projectId,
-        assignedTo: assignedTo,
-        priority,
-        status,
-        dueDate: dueDate || null,
-        createdBy: String(currentUser!.id),
-        createdAt: new Date().toISOString(),
-        completedAt: null
+      const res = await apiFetch('/tasks', {
+        method: 'POST',
+        getAccessToken,
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          projectId: projectId,
+          assignedTo: assignedTo,
+          priority,
+          status,
+          dueDate: dueDate || null,
+          createdBy: String(currentUser!.id),
+        }),
       });
-      
-      console.log('Task created successfully');
-      reset();
-      onOpenChange(false);
+
+      if (res.ok) {
+        reset();
+        onOpenChange(false);
+        onSuccess?.();
+      } else {
+        const err = await res.json();
+        alert(`Failed to create task: ${err.error || 'Unknown error'}`);
+      }
     } catch (error) {
       console.error('Failed to create task:', error);
-      console.error('Error details:', error.message || error);
-      alert('Failed to create task. Please try again.');
+      alert('Failed to create task: Network error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -104,15 +126,15 @@ export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: Creat
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-2">
             <Label className="text-xs">Title</Label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Task title" />
+            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Task title" disabled={loading} />
           </div>
           <div className="space-y-2">
             <Label className="text-xs">Description</Label>
-            <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Details..." rows={3} />
+            <Textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Details..." rows={3} disabled={loading} />
           </div>
           <div className="space-y-2">
             <Label className="text-xs">Project</Label>
-            <Select value={projectId} onValueChange={setProjectId}>
+            <Select value={projectId} onValueChange={setProjectId} disabled={loading}>
               <SelectTrigger><SelectValue placeholder="Select project" /></SelectTrigger>
               <SelectContent>
                 {scopedProjects.map(p => (
@@ -123,7 +145,7 @@ export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: Creat
           </div>
           <div className="space-y-2">
             <Label className="text-xs">Assign To</Label>
-            <Select value={assignedTo} onValueChange={setAssignedTo}>
+            <Select value={assignedTo} onValueChange={setAssignedTo} disabled={loading}>
               <SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger>
               <SelectContent>
                 {assignableUsers.map(u => (
@@ -135,7 +157,7 @@ export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: Creat
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label className="text-xs">Priority</Label>
-              <Select value={priority} onValueChange={v => setPriority(v as TaskPriority)}>
+              <Select value={priority} onValueChange={v => setPriority(v as TaskPriority)} disabled={loading}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(['LOW', 'MEDIUM', 'HIGH', 'URGENT'] as TaskPriority[]).map(p => (
@@ -146,7 +168,7 @@ export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: Creat
             </div>
             <div className="space-y-2">
               <Label className="text-xs">Status</Label>
-              <Select value={status} onValueChange={v => setStatus(v as TaskStatus)}>
+              <Select value={status} onValueChange={v => setStatus(v as TaskStatus)} disabled={loading}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(['BACKLOG', 'TODO', 'IN_PROGRESS', 'REVIEW', 'DONE'] as TaskStatus[]).map(s => (
@@ -158,11 +180,15 @@ export const CreateTaskDialog = ({ open, onOpenChange, defaultProjectId }: Creat
           </div>
           <div className="space-y-2">
             <Label className="text-xs">Due Date</Label>
-            <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            <Input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} disabled={loading} />
           </div>
           <div className="flex gap-2 pt-2">
-            <Button type="submit" className="flex-1 bg-violet-500 hover:bg-violet-600 text-white">Create Task</Button>
-            <Button type="button" variant="outline" className="border-violet-500 text-violet-500 hover:bg-violet-50" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="submit" className="flex-1 bg-violet-500 hover:bg-violet-600 text-white" disabled={loading}>
+              {loading ? 'Creating...' : 'Create Task'}
+            </Button>
+            <Button type="button" variant="outline" className="border-violet-500 text-violet-500 hover:bg-violet-50" onClick={() => onOpenChange(false)} disabled={loading}>
+              Cancel
+            </Button>
           </div>
         </form>
       </DialogContent>

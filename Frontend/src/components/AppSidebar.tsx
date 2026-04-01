@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { getInitials } from '@/lib/utils';
 import {
   LayoutDashboard, Building2, FolderKanban,
   Users, BarChart3, Shield, LogOut,
@@ -28,7 +28,6 @@ const navItems: NavItem[] = [
 
 export const AppSidebar = () => {
   const { currentUser, currentRole, logout } = useAuth();
-  const { getInitials } = useData();
   const location = useLocation();
 
   if (!currentUser) return null;

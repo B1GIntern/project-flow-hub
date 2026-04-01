@@ -2,13 +2,6 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch } from '@/lib/api';
 import { User, Department, Project, Task, KPI, Role } from '@/types/models';
-import {
-  roles as seedRoles,
-  users as seedUsers,
-  projects as seedProjects,
-  tasks as seedTasks,
-  kpis as seedKpis,
-} from '@/data/mockData';
 
 interface DataContextType {
   roles: Role[];
@@ -52,12 +45,12 @@ const DataContext = createContext<DataContextType | null>(null);
 export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { getAccessToken, currentUser, currentRole } = useAuth();
 
-  const [roles, setRoles] = useState<Role[]>([...seedRoles]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [kpis, setKpis] = useState<KPI[]>([...seedKpis]);
+  const [kpis, setKpis] = useState<KPI[]>([]);
 
   // Fetch real data on mount
   useEffect(() => {

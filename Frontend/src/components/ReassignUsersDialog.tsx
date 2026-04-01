@@ -1,14 +1,26 @@
 import { useState } from 'react';
-import { useData } from '@/contexts/DataContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+interface User {
+  id: string;
+  fullName: string;
+  departmentId: string;
+}
+
+interface Department {
+  id: string;
+  name: string;
+}
+
 interface ReassignUsersDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  department: any;
+  department: Department | null;
+  departments: Department[];
+  departmentUsers: User[];
   onReassignAndDelete: (newDepartmentId: string | null) => Promise<void>;
 }
 
@@ -16,14 +28,13 @@ export const ReassignUsersDialog = ({
   open, 
   onOpenChange, 
   department, 
+  departments,
+  departmentUsers,
   onReassignAndDelete 
 }: ReassignUsersDialogProps) => {
-  const { departments, users, getUsersByDepartment } = useData();
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Get users in the department being deleted
-  const departmentUsers = getUsersByDepartment(department?.id || '');
   const userCount = departmentUsers.length;
 
   // Get available departments for reassignment (exclude the one being deleted)

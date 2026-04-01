@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useData } from '@/contexts/DataContext';
+import { useUsers } from '@/hooks/useUsers';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -12,7 +12,21 @@ import { EditUserDialog } from '@/components/EditUserDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const UsersPage = () => {
-  const { users, departments, getDepartment, getUser, getRoleName, getInitials, updateUser, deleteUser, setUsers } = useData();
+  const { 
+    users, 
+    departments, 
+    roles,
+    getDepartment, 
+    getUser, 
+    getRoleName, 
+    getInitials, 
+    updateUser, 
+    deleteUser, 
+    setUsers,
+    loading,
+    error,
+    refreshUsers
+  } = useUsers();
   const { hasAccess } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -61,6 +75,43 @@ const UsersPage = () => {
     setSearchQuery(value);
     setCurrentPage(1);
   };
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-lg sm:text-xl font-semibold">User Directory</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Loading...</p>
+          </div>
+        </div>
+        <div className="surface-card p-8 text-center">
+          <p className="text-muted-foreground">Loading users...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-lg sm:text-xl font-semibold">User Directory</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Error loading data</p>
+          </div>
+        </div>
+        <div className="surface-card p-8 text-center">
+          <p className="text-red-600 mb-4">Failed to load users: {error}</p>
+          <Button onClick={refreshUsers} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -230,12 +281,23 @@ const UsersPage = () => {
         </div>
       )}
 
-      <CreateUserDialog open={dialogOpen} onOpenChange={setDialogOpen} />
+      <CreateUserDialog 
+        open={dialogOpen} 
+        onOpenChange={setDialogOpen}
+        roles={roles}
+        departments={departments}
+        users={users}
+        onSuccess={refreshUsers}
+      />
       
       <EditUserDialog 
         open={editDialogOpen} 
         onOpenChange={setEditDialogOpen} 
-        user={selectedUser} 
+        user={selectedUser}
+        roles={roles}
+        departments={departments}
+        users={users}
+        onSuccess={refreshUsers}
       />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -262,6 +324,8 @@ const UsersPage = () => {
                   console.log('UsersPage: Deletion successful, closing dialog');
                   setDeleteDialogOpen(false);
                   setUserToDelete(null);
+                  // Refresh data to reflect changes
+                  await refreshUsers();
                 } else {
                   console.log('UsersPage: Deletion failed, showing error:', result.error);
                   alert(`Failed to delete user: ${result.error}`);

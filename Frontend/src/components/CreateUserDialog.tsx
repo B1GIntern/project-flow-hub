@@ -1,18 +1,40 @@
 import { useState } from 'react';
-import { useData } from '@/contexts/DataContext';
+import { apiFetch } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
+interface Role {
+  id: string;
+  name: string;
+}
+
+interface Department {
+  id: string;
+  name: string;
+}
+
+interface User {
+  id: string;
+  fullName: string;
+  departmentId: string;
+  roleId: string;
+}
+
 interface CreateUserDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  roles: Role[];
+  departments: Department[];
+  users: User[];
+  onSuccess?: () => void;
 }
 
-export const CreateUserDialog = ({ open, onOpenChange }: CreateUserDialogProps) => {
-  const { addUser, roles, departments, users } = useData();
+export const CreateUserDialog = ({ open, onOpenChange, roles, departments, users, onSuccess }: CreateUserDialogProps) => {
+  const { getAccessToken } = useAuth();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [roleId, setRoleId] = useState('');
@@ -26,22 +48,41 @@ export const CreateUserDialog = ({ open, onOpenChange }: CreateUserDialogProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName || !email || !roleId || roleId === '') {
+    if (!fullName || !email || !roleId || roleId === '' || isSubmitting) {
       alert('Please fill in all required fields including Role');
       return;
     }
+    
     setIsSubmitting(true);
-    await addUser({
-      fullName,
-      email,
-      password: 'tempPassword123!',
-      roleId: roleId,
-      departmentId: departmentId && departmentId !== 'none' ? departmentId : null,
-      managerId: managerId && managerId !== 'none' ? managerId : null,
-    });
-    setIsSubmitting(false);
-    reset();
-    onOpenChange(false);
+    try {
+      const res = await apiFetch('/users/register', {
+        method: 'POST',
+        // Don't pass getAccessToken for public endpoint
+        body: JSON.stringify({
+          fullName,
+          email,
+          password: 'tempPassword123!',
+          roleId: roleId,
+          departmentId: departmentId && departmentId !== 'none' ? departmentId : null,
+          managerId: managerId && managerId !== 'none' ? managerId : null,
+          createdAt: new Date().toISOString(),
+        }),
+      });
+
+      if (res.ok) {
+        reset();
+        onOpenChange(false);
+        onSuccess?.();
+      } else {
+        const err = await res.json();
+        alert(`Failed to create user: ${err.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to create user:', error);
+      alert('Failed to create user: Network error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const potentialManagers = departmentId && departmentId !== 'none'
@@ -57,11 +98,11 @@ export const CreateUserDialog = ({ open, onOpenChange }: CreateUserDialogProps) 
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
           <div className="space-y-2">
             <Label className="text-xs">Full Name</Label>
-            <Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="John Smith" />
+            <Input value={fullName} onChange={e => setFullName(e.target.value)} placeholder="John Smith" disabled={isSubmitting} />
           </div>
           <div className="space-y-2">
             <Label className="text-xs">Email</Label>
-            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="john@corp.com" />
+            <Input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="john@corp.com" disabled={isSubmitting} />
           </div>
           <div className="space-y-2">
             <Label className="text-xs">Password</Label>
@@ -70,7 +111,7 @@ export const CreateUserDialog = ({ open, onOpenChange }: CreateUserDialogProps) 
           </div>
           <div className="space-y-2">
             <Label className="text-xs">Role</Label>
-            <Select value={roleId} onValueChange={setRoleId}>
+            <Select value={roleId} onValueChange={setRoleId} disabled={isSubmitting}>
               <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
               <SelectContent>
                 {roles.map(r => (
@@ -81,7 +122,7 @@ export const CreateUserDialog = ({ open, onOpenChange }: CreateUserDialogProps) 
           </div>
           <div className="space-y-2">
             <Label className="text-xs">Department</Label>
-            <Select value={departmentId} onValueChange={setDepartmentId}>
+            <Select value={departmentId} onValueChange={setDepartmentId} disabled={isSubmitting}>
               <SelectTrigger><SelectValue placeholder="Select department" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
@@ -93,7 +134,7 @@ export const CreateUserDialog = ({ open, onOpenChange }: CreateUserDialogProps) 
           </div>
           <div className="space-y-2">
             <Label className="text-xs">Reports To</Label>
-            <Select value={managerId} onValueChange={setManagerId}>
+            <Select value={managerId} onValueChange={setManagerId} disabled={isSubmitting}>
               <SelectTrigger><SelectValue placeholder="Select manager" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">None</SelectItem>
@@ -107,7 +148,9 @@ export const CreateUserDialog = ({ open, onOpenChange }: CreateUserDialogProps) 
             <Button type="submit" className="flex-1" disabled={isSubmitting}>
               {isSubmitting ? 'Creating...' : 'Create User'}
             </Button>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+              Cancel
+            </Button>
           </div>
         </form>
       </DialogContent>

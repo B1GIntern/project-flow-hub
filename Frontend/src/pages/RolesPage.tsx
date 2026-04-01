@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useData } from '@/contexts/DataContext';
+import { useRoles } from '@/hooks/useRoles';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiFetch } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Plus, Pencil, Trash2, Shield } from 'lucide-react';
 
 const RolesPage = () => {
-  const { roles, addRole, updateRole, deleteRole, users, setRoles } = useData();
+  const { roles, addRole, updateRole, deleteRole, users, setRoles, loading, error, refreshRoles } = useRoles();
   const { hasAccess, getAccessToken } = useAuth();
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -20,14 +20,58 @@ const RolesPage = () => {
 
   const isAdmin = hasAccess(['ADMIN']);
 
-  const handleCreate = (e: React.FormEvent) => {
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-lg sm:text-xl font-semibold">Roles</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Loading...</p>
+          </div>
+        </div>
+        <div className="surface-card p-8 text-center">
+          <p className="text-muted-foreground">Loading roles...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-lg sm:text-xl font-semibold">Roles</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Error loading data</p>
+          </div>
+        </div>
+        <div className="surface-card p-8 text-center">
+          <p className="text-red-600 mb-4">Failed to load roles: {error}</p>
+          <Button onClick={refreshRoles} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!roleName.trim()) return;
     const processedRoleName = roleName.trim().replace(/\s+/g, '_').toUpperCase();
     console.log('Creating role with payload:', { name: processedRoleName });
-    addRole({ name: processedRoleName });
-    setRoleName('');
-    setCreateOpen(false);
+    try {
+      await addRole({ name: processedRoleName });
+      setRoleName('');
+      setCreateOpen(false);
+      // Refresh data to reflect changes
+      await refreshRoles();
+    } catch (error) {
+      console.error('Failed to create role:', error);
+      alert('Failed to create role. Please try again.');
+    }
   };
 
   const handleEdit = async (e: React.FormEvent) => {
@@ -41,15 +85,19 @@ const RolesPage = () => {
       });
       
       if (res.ok) {
-        updateRole(editId, { name: roleName.trim().replace(/\s+/g, '_') });
+        await updateRole(editId, { name: roleName.trim().replace(/\s+/g, '_') });
         setRoleName('');
         setEditOpen(false);
         setEditId(null);
+        // Refresh data to reflect changes
+        await refreshRoles();
       } else {
         console.error('Failed to update role');
+        alert('Failed to update role. Please try again.');
       }
     } catch (err) {
       console.error('Error updating role:', err);
+      alert('Failed to update role. Please try again.');
     }
   };
 
@@ -73,26 +121,17 @@ const RolesPage = () => {
     try {
       console.log('Confirming delete for role:', { id: deleteRoleId, name: deleteRoleName });
       
-      const res = await apiFetch(`/roles/${deleteRoleId}`, {
-        method: 'DELETE',
-        getAccessToken
-      });
+      await deleteRole(deleteRoleId);
       
-      console.log('Delete response status:', res.status);
+      console.log('Delete successful, removing from UI state');
+      setDeleteRoleId(null);
+      setDeleteRoleName('');
       
-      if (res.ok || res.status === 204) {
-        console.log('Delete successful, removing from UI state');
-        // Remove from UI state directly in RolesPage
-        setRoles(prev => prev.filter(r => r.id !== deleteRoleId));
-        setDeleteRoleId(null);
-        setDeleteRoleName('');
-      } else {
-        console.error('Delete failed, keeping role in UI');
-        const err = await res.json();
-        console.error('Failed to delete role:', err);
-      }
+      // Refresh data to reflect changes
+      await refreshRoles();
     } catch (err) {
       console.error('Error deleting role:', err);
+      alert('Failed to delete role. Please try again.');
     }
   };
 

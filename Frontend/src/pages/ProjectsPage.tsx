@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useProjects } from '@/hooks/useProjects';
 import { ProjectStatus, Task, TaskPriority, TaskStatus } from '@/types/models';
 import { PriorityDot } from '@/components/PriorityDot';
 import { StatusBadge } from '@/components/StatusBadge';
@@ -23,7 +23,23 @@ const statusStyle: Record<ProjectStatus, string> = {
 
 const ProjectsPage = () => {
   const { currentUser, currentRole, hasAccess } = useAuth();
-  const { departments, projects, tasks, users, getDepartment, getUser, getInitials, addProject, updateProject, deleteProject, updateTask, deleteTask } = useData();
+  const { 
+    departments, 
+    projects, 
+    tasks, 
+    users, 
+    getDepartment, 
+    getUser, 
+    getInitials, 
+    addProject, 
+    updateProject, 
+    deleteProject, 
+    updateTask, 
+    deleteTask,
+    loading,
+    error,
+    refreshProjects
+  } = useProjects();
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
@@ -45,6 +61,43 @@ const ProjectsPage = () => {
 
   const scopedProjects = projects.filter(p => scopedDeptIds.includes(p.departmentId));
 
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-lg sm:text-xl font-semibold">Projects</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Loading...</p>
+          </div>
+        </div>
+        <div className="surface-card p-8 text-center">
+          <p className="text-muted-foreground">Loading projects...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-lg sm:text-xl font-semibold">Projects</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Error loading data</p>
+          </div>
+        </div>
+        <div className="surface-card p-8 text-center">
+          <p className="text-red-600 mb-4">Failed to load projects: {error}</p>
+          <Button onClick={refreshProjects} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   const toggleProject = (id: string) => {
     setExpandedProjects(prev => {
       const next = new Set(prev);
@@ -62,6 +115,8 @@ const ProjectsPage = () => {
         status: projectData.status || 'PLANNING',
         createdAt: new Date().toISOString()
       });
+      // Refresh data to reflect changes
+      await refreshProjects();
     } catch (error) {
       console.error('Failed to create project:', error);
     }
@@ -70,6 +125,8 @@ const ProjectsPage = () => {
   const handleUpdateProject = async (id: string, updates: { name?: string; departmentId?: string; status?: ProjectStatus }) => {
     try {
       await updateProject(id, updates);
+      // Refresh data to reflect changes
+      await refreshProjects();
     } catch (error) {
       console.error('Failed to update project:', error);
     }
@@ -78,8 +135,30 @@ const ProjectsPage = () => {
   const handleDeleteProject = async (id: string) => {
     try {
       await deleteProject(id);
+      // Refresh data to reflect changes
+      await refreshProjects();
     } catch (error) {
       console.error('Failed to delete project:', error);
+    }
+  };
+
+  const handleUpdateTask = async (id: string, updates: Partial<Task>) => {
+    try {
+      await updateTask(id, updates);
+      // Refresh data to reflect changes
+      await refreshProjects();
+    } catch (error) {
+      console.error('Failed to update task:', error);
+    }
+  };
+
+  const handleDeleteTask = async (id: string) => {
+    try {
+      await deleteTask(id);
+      // Refresh data to reflect changes
+      await refreshProjects();
+    } catch (error) {
+      console.error('Failed to delete task:', error);
     }
   };
 
@@ -182,7 +261,7 @@ const ProjectsPage = () => {
                           </div>
                           <StatusBadge status={task.status} />
                           <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                            {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}
+                            {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).toUpperCase()}
                           </span>
                           <span className="text-xs text-muted-foreground capitalize">{task.priority.toLowerCase()}</span>
                           {assignee && (
@@ -292,9 +371,22 @@ const ProjectsPage = () => {
         </DialogContent>
       </Dialog>
 
-      <CreateTaskDialog open={createTaskOpen} onOpenChange={setCreateTaskOpen} defaultProjectId={createTaskProjectId} />
+      <CreateTaskDialog 
+        open={createTaskOpen} 
+        onOpenChange={setCreateTaskOpen} 
+        defaultProjectId={createTaskProjectId}
+        projects={projects}
+        users={users}
+        departments={departments}
+        onSuccess={refreshProjects}
+      />
 
-      <CreateProjectDialog open={createProjectOpen} onOpenChange={setCreateProjectOpen} />
+      <CreateProjectDialog 
+        open={createProjectOpen} 
+        onOpenChange={setCreateProjectOpen}
+        departments={departments}
+        onSuccess={refreshProjects}
+      />
 
       {/* Edit Project Modal */}
       <Dialog open={!!editProject} onOpenChange={(open) => { if (!open) { setEditProject(undefined); setEditProjectData(null); } }}>

@@ -1,7 +1,8 @@
 import { useAuth } from '@/contexts/AuthContext';
-import { useData } from '@/contexts/DataContext';
+import { useDashboard } from '@/hooks/useDashboard';
 import { CheckSquare, FolderKanban, Users, Building2, TrendingUp } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import { KPIBadge } from '@/components/KPIBadge';
 import { StatusBadge } from '@/components/StatusBadge';
 import { PriorityDot } from '@/components/PriorityDot';
@@ -18,7 +19,19 @@ const StatCard = ({ label, value, icon }: { label: string; value: string | numbe
 
 const DashboardPage = () => {
   const { currentUser, currentRole } = useAuth();
-  const { departments, users, projects, tasks, kpis, getUser, getDepartment, getInitials } = useData();
+  const { 
+    departments, 
+    users, 
+    projects, 
+    tasks, 
+    kpis, 
+    getUser, 
+    getDepartment, 
+    getInitials,
+    loading,
+    error,
+    refreshDashboard
+  } = useDashboard();
 
   const scopedDepartments = currentRole === 'ADMIN'
     ? departments
@@ -42,6 +55,39 @@ const DashboardPage = () => {
 
   const activeTasks = scopedTasks.filter(t => t.status !== 'DONE');
   const completedTasks = scopedTasks.filter(t => t.status === 'DONE');
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-lg sm:text-xl font-semibold">Dashboard</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Loading...</p>
+        </div>
+        <div className="surface-card p-8 text-center">
+          <p className="text-muted-foreground">Loading dashboard data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-lg sm:text-xl font-semibold">Dashboard</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Error loading data</p>
+        </div>
+        <div className="surface-card p-8 text-center">
+          <p className="text-red-600 mb-4">Failed to load dashboard: {error}</p>
+          <Button onClick={refreshDashboard} variant="outline">
+            Try Again
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
