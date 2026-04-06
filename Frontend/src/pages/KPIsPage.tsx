@@ -6,9 +6,12 @@ import { KPIBadge } from '@/components/KPIBadge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { useState, useEffect } from 'react';
 import { apiFetch } from '@/lib/api';
-import { TrendingUp, TrendingDown, Users, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, Users, CheckCircle, Clock, AlertCircle, Edit } from 'lucide-react';
 
 interface KPIData {
   id: string;
@@ -19,12 +22,12 @@ interface KPIData {
   periodMonth: number;
   periodYear: number;
   tasksCompleted: number;
-  onTimePercentage: number;
+  on_time_percentage: number;
   managerRating: number;
 }
 
 const KPIsPage = () => {
-  const { currentUser, currentRole, getAccessToken } = useAuth();
+  const { currentUser, currentRole, hasAccess, getAccessToken } = useAuth();
   const { departments, users, getDepartment, getInitials, loading: dataLoading, error: dataError, refreshData } = useKPIs();
   
   // Set current month and year as defaults
@@ -36,6 +39,38 @@ const KPIsPage = () => {
   const [kpiData, setKpiData] = useState<KPIData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // State for rating edit
+  const [editingRating, setEditingRating] = useState<KPIData | null>(null);
+  const [ratingValue, setRatingValue] = useState<string>('');
+  const [ratingLoading, setRatingLoading] = useState<string | null>(null);
+  const [calculating, setCalculating] = useState(false);
+
+  // Calculate KPIs based on tasks
+  const calculateKPIs = async () => {
+    setCalculating(true);
+    setError(null);
+    try {
+      const res = await apiFetch(
+        `/kpis/calculate?month=${selectedMonth}&year=${selectedYear}`,
+        { getAccessToken }
+      );
+      
+      if (res.ok) {
+        const data = await res.json();
+        console.log('KPIs calculated:', data);
+        // Refresh the data after calculation
+        await fetchKpiData();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setError(errorData.error || 'Failed to calculate KPIs');
+      }
+    } catch (err) {
+      setError('Failed to calculate KPIs');
+    } finally {
+      setCalculating(false);
+    }
+  };
 
   // Generate year options (current year and 2 years back)
   const generateYearOptions = () => {
@@ -49,12 +84,22 @@ const KPIsPage = () => {
     setError(null);
     try {
       const res = await apiFetch(
-        `/kpis/calculate?month=${selectedMonth}&year=${selectedYear}`,
+        `/kpis?month=${selectedMonth}&year=${selectedYear}`,
         { getAccessToken }
       );
       
       if (res.ok) {
         const data = await res.json();
+        console.log('KPI data received from backend:', data);
+        if (data.length > 0) {
+          console.log('First employee data:', {
+            id: data[0].id,
+            userId: data[0].userId,
+            full_name: data[0].full_name,
+            on_time_percentage: data[0].on_time_percentage,
+            on_time_percentage_type: typeof data[0].on_time_percentage
+          });
+        }
         setKpiData(data || []);
         
         // If no data, provide helpful message
@@ -79,6 +124,62 @@ const KPIsPage = () => {
     const months = ['January', 'February', 'March', 'April', 'May', 'June',
                    'July', 'August', 'September', 'October', 'November', 'December'];
     return months[month - 1] || 'Unknown';
+  };
+
+  // Update manager rating
+  const updateRating = async (kpi: KPIData, newRating: string) => {
+    if (!newRating || isNaN(Number(newRating))) return;
+    
+    const rating = Number(newRating);
+    if (rating < 0 || rating > 5) return;
+
+    setRatingLoading(kpi.id);
+    try {
+      const response = await apiFetch(`/kpis/${kpi.id}`, {
+        method: 'PUT',
+        getAccessToken,
+        body: JSON.stringify({
+          userId: kpi.userId,
+          periodMonth: kpi.periodMonth,
+          periodYear: kpi.periodYear,
+          tasksCompleted: kpi.tasksCompleted,
+          onTimePercentage: kpi.on_time_percentage,
+          managerRating: rating
+        })
+      });
+
+      if (response.ok) {
+        const updatedKPI = await response.json();
+        
+        // Update local state with the new ID from the database
+        setKpiData(prev => prev.map(k => 
+          k.id === kpi.id ? { 
+            ...k, 
+            managerRating: rating,
+            on_time_percentage: updatedKPI.onTimePercentage || updatedKPI.on_time_percentage,
+            id: updatedKPI.id // Update the ID to the real database ID
+          } : k
+        ));
+        setEditingRating(null);
+        setRatingValue('');
+        
+        // Optionally refresh the data to ensure consistency
+        await fetchKpiData();
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.error || 'Failed to update rating');
+      }
+    } catch (err) {
+      setError('Failed to update rating');
+    } finally {
+      setRatingLoading(null);
+    }
+  };
+
+  // Open rating edit dialog
+  const openRatingEdit = (kpi: KPIData) => {
+    setEditingRating(kpi);
+    setRatingValue(kpi.managerRating?.toString() || '0');
   };
 
   // Department filtering based on user role
@@ -110,9 +211,16 @@ const KPIsPage = () => {
       };
     }
 
-    const avgOnTime = (filteredKpiData.reduce((sum, k) => sum + (typeof k.onTimePercentage === 'number' ? k.onTimePercentage : 0), 0) / filteredKpiData.length).toFixed(1);
+    const avgOnTime = (filteredKpiData.reduce((sum, k) => sum + (typeof k.on_time_percentage === 'number' ? k.on_time_percentage : 0), 0) / filteredKpiData.length).toFixed(1);
     const totalCompleted = filteredKpiData.reduce((sum, k) => sum + (typeof k.tasksCompleted === 'number' ? k.tasksCompleted : 0), 0);
-    const avgRating = (filteredKpiData.reduce((sum, k) => sum + (typeof k.managerRating === 'number' ? k.managerRating : 0), 0) / filteredKpiData.length).toFixed(1);
+    const avgRating = (filteredKpiData.reduce((sum, k) => {
+      const rating = typeof k.managerRating === 'number' 
+        ? k.managerRating 
+        : typeof k.managerRating === 'string' && k.managerRating !== ''
+          ? parseFloat(k.managerRating)
+          : 0;
+      return sum + rating;
+    }, 0) / filteredKpiData.length).toFixed(1);
 
     return {
       avgOnTime,
@@ -176,6 +284,15 @@ const KPIsPage = () => {
               ))}
             </SelectContent>
           </Select>
+          <Button 
+            onClick={calculateKPIs}
+            disabled={calculating}
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs"
+          >
+            {calculating ? 'Calculating...' : 'Calculate KPIs'}
+          </Button>
         </div>
       </div>
 
@@ -206,9 +323,7 @@ const KPIsPage = () => {
                 </Button>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-4">
-              Tip: Make sure you have employees with role_id='5' and completed tasks for the selected period.
-            </p>
+            
           </CardContent>
         </Card>
       ) : filteredKpiData.length === 0 ? (
@@ -286,9 +401,9 @@ const KPIsPage = () => {
                 </div>
                 <div className="divide-y divide-border">
                   {filteredKpiData
-                    .sort((a, b) => b.onTimePercentage - a.onTimePercentage)
+                    .sort((a, b) => b.on_time_percentage - a.on_time_percentage)
                     .map(employee => {
-                      const performance = getPerformanceLevel(employee.onTimePercentage);
+                      const performance = getPerformanceLevel(employee.on_time_percentage);
                       return (
                         <div key={employee.userId} className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_120px] items-center px-4 py-3 hover:bg-accent transition-colors min-w-[600px]">
                           <div className="flex items-center gap-2.5 min-w-0">
@@ -305,7 +420,7 @@ const KPIsPage = () => {
                           <span className="text-xs text-muted-foreground">{employee.department_name}</span>
                           <span className="font-mono text-xs tabular-nums text-center">{employee.tasksCompleted}</span>
                           <div className="text-center">
-                            <KPIBadge value={employee.onTimePercentage} suffix="%" />
+                            <KPIBadge value={employee.on_time_percentage} suffix="%" />
                           </div>
                           <div className="text-center">
                             <div className="flex items-center justify-center gap-1">
@@ -313,9 +428,61 @@ const KPIsPage = () => {
                               <span className="font-mono text-xs">
                                 {typeof employee.managerRating === 'number' 
                                   ? employee.managerRating.toFixed(1) 
-                                  : '0.0'
+                                  : typeof employee.managerRating === 'string' && employee.managerRating !== ''
+                                    ? parseFloat(employee.managerRating).toFixed(1)
+                                    : '0.0'
                                 }
                               </span>
+                              {hasAccess(['ADMIN', 'DEPT_HEAD', 'MANAGER']) && (
+                                <Dialog open={editingRating?.id === employee.id} onOpenChange={(open) => !open && setEditingRating(null)}>
+                                  <DialogTrigger asChild>
+                                    <Button 
+                                      size="sm" 
+                                      variant="ghost" 
+                                      className="h-6 w-6 p-0 hover:bg-muted"
+                                      onClick={() => openRatingEdit(employee)}
+                                      disabled={ratingLoading === employee.id}
+                                    >
+                                      <Edit className="w-3 h-3" />
+                                    </Button>
+                                  </DialogTrigger>
+                                  <DialogContent>
+                                    <DialogHeader>
+                                      <DialogTitle>Update Rating</DialogTitle>
+                                    </DialogHeader>
+                                    <div className="space-y-4">
+                                      <div className="space-y-2">
+                                        <Label htmlFor="rating">Rating (0-5)</Label>
+                                        <Input
+                                          id="rating"
+                                          type="number"
+                                          min="0"
+                                          max="5"
+                                          step="0.5"
+                                          value={ratingValue}
+                                          onChange={(e) => setRatingValue(e.target.value)}
+                                          placeholder="Enter rating (0-5)"
+                                        />
+                                      </div>
+                                      <div className="flex justify-end gap-2">
+                                        <Button 
+                                          variant="outline" 
+                                          onClick={() => setEditingRating(null)}
+                                          disabled={ratingLoading === employee.id}
+                                        >
+                                          Cancel
+                                        </Button>
+                                        <Button 
+                                          onClick={() => updateRating(employee, ratingValue)}
+                                          disabled={ratingLoading === employee.id}
+                                        >
+                                          {ratingLoading === employee.id ? 'Updating...' : 'Update'}
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  </DialogContent>
+                                </Dialog>
+                              )}
                             </div>
                           </div>
                           <div className="text-center">

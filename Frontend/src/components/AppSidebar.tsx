@@ -23,7 +23,6 @@ const navItems: NavItem[] = [
   { label: 'Projects', path: '/projects', icon: <FolderKanban className="w-4 h-4" />, roles: ['ADMIN', 'DEPT_HEAD', 'MANAGER', 'SUPERVISOR', 'EMPLOYEE'] },
   { label: 'Users', path: '/users', icon: <Users className="w-4 h-4" />, roles: ['ADMIN'] },
   { label: 'Roles', path: '/roles', icon: <Shield className="w-4 h-4" />, roles: ['ADMIN'] },
-  { label: 'KPIs', path: '/kpis', icon: <BarChart3 className="w-4 h-4" />, roles: ['ADMIN', 'DEPT_HEAD', 'MANAGER', 'SUPERVISOR'] },
 ];
 
 export const AppSidebar = () => {

@@ -4,11 +4,12 @@ import { useProjects } from '@/hooks/useProjects';
 import { ProjectStatus, Task, TaskPriority, TaskStatus } from '@/types/models';
 import { PriorityDot } from '@/components/PriorityDot';
 import { StatusBadge } from '@/components/StatusBadge';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FolderKanban, ChevronRight, ChevronDown, Plus, Edit, Trash2, Pencil } from 'lucide-react';
 import { CreateTaskDialog } from '@/components/CreateTaskDialog';
@@ -144,7 +145,20 @@ const ProjectsPage = () => {
 
   const handleUpdateTask = async (id: string, updates: Partial<Task>) => {
     try {
-      await updateTask(id, updates);
+      // Auto-set completedAt when status changes to DONE
+      const currentTask = tasks.find(t => t.id === id);
+      let finalUpdates = { ...updates };
+      
+      if (updates.status === 'DONE' && currentTask?.status !== 'DONE') {
+        finalUpdates.completedAt = new Date().toISOString();
+        console.log('✓ Status changed to DONE, setting completedAt to:', finalUpdates.completedAt);
+      } else if (updates.status !== 'DONE' && currentTask?.status === 'DONE') {
+        // Clear completedAt when status changes away from DONE
+        finalUpdates.completedAt = null;
+        console.log('✓ Status changed away from DONE, clearing completedAt');
+      }
+      
+      await updateTask(id, finalUpdates);
       // Refresh data to reflect changes
       await refreshProjects();
     } catch (error) {
@@ -246,7 +260,7 @@ const ProjectsPage = () => {
                         >
                           <div className="flex flex-col gap-2">
                             <span className="text-sm truncate">{task.title}</span>
-                            {hasAccess(['ADMIN', 'DEPT_HEAD', 'MANAGER', 'SUPERVISOR']) && (
+                            {hasAccess(['ADMIN', 'DEPT_HEAD', 'MANAGER', 'SUPERVISOR', 'EMPLOYEE']) && (
                               <div className="flex gap-2">
                                 <Pencil 
                                   className="h-4 w-4 cursor-pointer hover:text-violet-600" 
@@ -265,9 +279,7 @@ const ProjectsPage = () => {
                           </span>
                           <span className="text-xs text-muted-foreground capitalize">{task.priority.toLowerCase()}</span>
                           {assignee && (
-                            <Avatar className="w-6 h-6">
-                              <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">{getInitials(assignee.fullName)}</AvatarFallback>
-                            </Avatar>
+                            <span className="text-xs text-muted-foreground">{assignee.fullName}</span>
                           )}
                         </div>
                       );
@@ -294,7 +306,7 @@ const ProjectsPage = () => {
                       <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Status</span>
                       <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Due</span>
                       <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Priority</span>
-                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Assignee</span>
+                      <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Assigned To</span>
                     </div>
                     <div className="px-4 pl-14 py-4">
                       <p className="text-xs text-muted-foreground">No tasks yet</p>
@@ -329,42 +341,56 @@ const ProjectsPage = () => {
             </DialogTitle>
           </DialogHeader>
           {selectedTask && (
-            <div className="space-y-4 mt-2">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Status</p>
+            <div className="space-y-6 mt-4">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Status</p>
                   <StatusBadge status={selectedTask.status} />
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Priority</p>
-                  <span className="text-sm capitalize">{selectedTask.priority.toLowerCase()}</span>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assigned To</p>
+                  <span className="text-sm font-medium">{getUser(selectedTask.assignedTo)?.fullName ?? '—'}</span>
                 </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Assigned To</p>
-                  <span className="text-sm">{getUser(selectedTask.assignedTo)?.fullName ?? '—'}</span>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Created By</p>
-                  <span className="text-sm">{getUser(selectedTask.createdBy)?.fullName ?? '—'}</span>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Due Date</p>
-                  <span className="text-sm font-mono">{new Date(selectedTask.dueDate).toLocaleDateString()}</span>
-                </div>
-                {selectedTask.completedAt && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Completed</p>
-                    <span className="text-sm font-mono">{new Date(selectedTask.completedAt).toLocaleDateString()}</span>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Created By</p>
+                  <div className="flex items-center gap-2">
+                    {getUser(selectedTask.createdBy) && (
+                      <Avatar className="w-5 h-5">
+                        <AvatarFallback className="text-[9px] bg-muted text-muted-foreground">
+                          {getInitials(getUser(selectedTask.createdBy)!.fullName)}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
+                    <span className="text-sm font-medium">
+                      {getUser(selectedTask.createdBy)?.fullName ?? 'Unknown User'}
+                    </span>
                   </div>
-                )}
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Priority</p>
+                    <span className="text-sm capitalize font-medium">{selectedTask.priority.toLowerCase()}</span>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Due Date</p>
+                  <span className="text-sm font-mono font-medium">{new Date(selectedTask.dueDate).toLocaleDateString()}</span>
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Completed At</p>
+                    <span className="text-sm font-mono font-medium">
+                      {selectedTask.completedAt 
+                        ? new Date(selectedTask.completedAt).toLocaleDateString()
+                        : '—'
+                    }
+                    </span>
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Description</p>
-                <p className="text-sm">{selectedTask.description || 'No description'}</p>
+              <div className="space-y-2 pt-4 border-t border-border/50">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</p>
+                <p className="text-sm leading-relaxed">{selectedTask.description || 'No description'}</p>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Project</p>
-                <span className="text-sm">{projects.find(p => p.id === selectedTask.projectId)?.name}</span>
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Project</p>
+                <span className="text-sm font-medium">{projects.find(p => p.id === selectedTask.projectId)?.name}</span>
               </div>
             </div>
           )}
@@ -480,7 +506,7 @@ const ProjectsPage = () => {
 
       {/* Edit Task Modal */}
       <Dialog open={!!editTask} onOpenChange={(open) => { if (!open) { setEditTask(null); } }}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Task</DialogTitle>
           </DialogHeader>
@@ -492,6 +518,7 @@ const ProjectsPage = () => {
                   value={editTask.title} 
                   onChange={(e) => setEditTask(prev => prev ? { ...prev, title: e.target.value } : null)} 
                   placeholder="Task name" 
+                  disabled={currentRole === 'EMPLOYEE'}
                 />
               </div>
               <div className="space-y-2">
@@ -513,18 +540,31 @@ const ProjectsPage = () => {
                 </Select>
               </div>
               <div className="space-y-2">
+                <Label className="text-xs">Description</Label>
+                <Textarea 
+                  value={editTask.description || ''} 
+                  onChange={(e) => setEditTask(prev => prev ? { ...prev, description: e.target.value } : null)} 
+                  placeholder="Task description..." 
+                  rows={3}
+                />
+              </div>
+              {currentRole !== 'EMPLOYEE' && (
+              <div className="space-y-2">
                 <Label className="text-xs">Due Date</Label>
                 <Input 
                   type="date"
                   value={editTask.dueDate} 
-                  onChange={(e) => setEditTask(prev => prev ? { ...prev, dueDate: e.target.value } : null)} 
+                  onChange={(e) => setEditTask(prev => prev ? { ...prev, dueDate: e.target.value } : null)}
+                  disabled={currentRole === 'EMPLOYEE'}
                 />
               </div>
+              )}
               <div className="space-y-2">
                 <Label className="text-xs">Priority</Label>
                 <Select 
                   value={editTask.priority} 
                   onValueChange={(value) => setEditTask(prev => prev ? { ...prev, priority: value as TaskPriority } : null)}
+                  disabled={currentRole === 'EMPLOYEE'}
                 >
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select priority" />
@@ -537,6 +577,7 @@ const ProjectsPage = () => {
                   </SelectContent>
                 </Select>
               </div>
+              {currentRole !== 'EMPLOYEE' && (
               <div className="space-y-2">
                 <Label className="text-xs">Assigned To</Label>
                 <Select 
@@ -555,6 +596,7 @@ const ProjectsPage = () => {
                   </SelectContent>
                 </Select>
               </div>
+              )}
               <div className="flex justify-end space-x-2 pt-2">
                 <Button onClick={async () => { if (editTask) { await updateTask(editTask.id, editTask); setEditTask(null); } }} className="bg-violet-500 hover:bg-violet-600 text-white">
                   Save

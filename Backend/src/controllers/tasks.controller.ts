@@ -50,6 +50,8 @@ export const createTask = async (req: Request, res: Response) => {
     console.log('=== Task Creation Request ===');
     console.log('Request body:', req.body);
     console.log('Request user from auth middleware:', req.user);
+    console.log('User ID type:', typeof req.user?.userId);
+    console.log('User ID value:', req.user?.userId);
     
     const { title, description, projectId, assignedTo, priority = 'MEDIUM', status = 'BACKLOG', dueDate } = req.body;
     
@@ -64,14 +66,24 @@ export const createTask = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Title, project ID, and assigned user are required' });
     }
 
+    // Use the authenticated user's ID from JWT token
+    const createdBy = req.user?.userId;
+    console.log('Using createdBy from authenticated user:', createdBy);
+    
+    if (!createdBy) {
+      console.log('No authenticated user found in request');
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+
     const { rows } = await pool.query(`
       INSERT INTO tasks (title, description, project_id, assigned_to, priority, status, due_date, created_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING id, title, description, project_id, assigned_to, priority, status, due_date, created_by, created_at
-    `, [title, description, projectId, assignedTo, priority, status, dueDate, req.user?.userId]);
+    `, [title, description, projectId, assignedTo, priority, status, dueDate, createdBy]);
 
     console.log('Database insertion result:', rows);
     console.log('New task ID:', rows[0]?.id);
+    console.log('Created by user ID:', req.user?.userId);
 
     const newTask = {
       id: rows[0].id,
@@ -82,6 +94,7 @@ export const createTask = async (req: Request, res: Response) => {
       dueDate: rows[0].due_date,
       projectId: rows[0].project_id,
       assignedTo: rows[0].assigned_to,
+      createdBy: rows[0].created_by,  // Add this field
       createdAt: rows[0].created_at
     };
     
@@ -99,6 +112,38 @@ export const updateTask = async (req: Request, res: Response) => {
     const { id } = req.params;
     const { title, description, projectId, assignedTo, priority, status, dueDate, completedAt } = req.body;
     
+    console.log('=== Task Update Request ===');
+    console.log('Task ID:', id);
+    console.log('Request body:', req.body);
+    console.log('Update data:', { title, description, projectId, assignedTo, priority, status, dueDate, completedAt });
+    
+    // Get current task data to check status change
+    const currentTask = await pool.query('SELECT status, completed_at FROM tasks WHERE id = $1', [id]);
+    
+    if (currentTask.rows.length === 0) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+    
+    console.log('Current task from DB:', currentTask.rows[0]);
+    
+    const currentStatus = currentTask.rows[0].status;
+    const currentCompletedAt = currentTask.rows[0].completed_at;
+    let finalCompletedAt = completedAt;
+    
+    console.log('Initial values - currentStatus:', currentStatus, 'newStatus:', status, 'currentCompletedAt:', currentCompletedAt, 'incomingCompletedAt:', completedAt);
+    
+    // Auto-set completed_at when status changes to DONE
+    if (status === 'DONE' && currentStatus !== 'DONE') {
+      finalCompletedAt = new Date().toISOString();
+      console.log('✓ Status changed to DONE, setting completed_at to:', finalCompletedAt);
+    } else if (status !== 'DONE' && currentStatus === 'DONE') {
+      // Clear completed_at when status changes away from DONE
+      finalCompletedAt = null;
+      console.log('✓ Status changed away from DONE, clearing completed_at');
+    } else {
+      console.log('Status not changing to/from DONE - keeping completed_at as:', finalCompletedAt);
+    }
+    
     const { rows } = await pool.query(`
       UPDATE tasks 
       SET title = COALESCE($1, title), 
@@ -110,8 +155,11 @@ export const updateTask = async (req: Request, res: Response) => {
           due_date = COALESCE($7, due_date),
           completed_at = COALESCE($8, completed_at)
       WHERE id = $9
-      RETURNING id, title, description, project_id, assigned_to, priority, status, due_date, created_at, completed_at
-    `, [title, description, projectId, assignedTo, priority, status, dueDate, completedAt, id]);
+      RETURNING id, title, description, project_id, assigned_to, priority, status, due_date, created_by, created_at, completed_at
+    `, [title, description, projectId, assignedTo, priority, status, dueDate, finalCompletedAt, id]);
+
+    console.log('✓ Database update completed. Updated task:', rows[0]);
+    console.log('✓ completed_at in database after update:', rows[0].completed_at);
 
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Task not found' });
@@ -126,10 +174,12 @@ export const updateTask = async (req: Request, res: Response) => {
       dueDate: rows[0].due_date,
       projectId: rows[0].project_id,
       assignedTo: rows[0].assigned_to,
+      createdBy: rows[0].created_by,  // Add this field
       createdAt: rows[0].created_at,
       completedAt: rows[0].completed_at
     };
     
+    console.log('Updated task:', updatedTask);
     res.json(updatedTask);
   } catch (error) {
     console.error('Error updating task:', error);

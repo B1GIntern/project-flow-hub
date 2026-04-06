@@ -3,6 +3,7 @@ import { useDashboard } from '@/hooks/useDashboard';
 import { CheckSquare, FolderKanban, Users, Building2, TrendingUp } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { KPIBadge } from '@/components/KPIBadge';
 import { StatusBadge } from '@/components/StatusBadge';
 import { PriorityDot } from '@/components/PriorityDot';
@@ -110,92 +111,45 @@ const DashboardPage = () => {
         )}
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        <div className="surface-card">
-          <div className="px-4 py-3 border-b border-border">
-            <h2 className="text-sm font-semibold">{currentRole === 'EMPLOYEE' ? 'My Tasks' : 'Recent Tasks'}</h2>
-          </div>
-          <div className="divide-y divide-border">
-            {scopedTasks.slice(0, 8).map(task => {
-              const assignee = getUser(task.assignedTo);
-              const project = projects.find(p => p.id === task.projectId);
-              return (
-                <div key={task.id} className="data-table-row">
-                  <PriorityDot priority={task.priority} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{task.title}</p>
-                    <p className="text-xs text-muted-foreground">{getDepartment(project?.departmentId ?? '')?.name} · {project?.name}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <StatusBadge status={task.status} />
-                    <span className="font-mono text-xs tabular-nums text-muted-foreground whitespace-nowrap">
-                      {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}
-                    </span>
-                    {assignee && (
-                      <Avatar className="w-6 h-6">
-                        <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">{getInitials(assignee.fullName)}</AvatarFallback>
-                      </Avatar>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      <div className="surface-card">
+        <div className="px-4 py-3 border-b border-border">
+          <h2 className="text-sm font-semibold">{currentRole === 'EMPLOYEE' ? 'My Tasks' : 'Recent Tasks'}</h2>
         </div>
-
-        {currentRole !== 'EMPLOYEE' ? (
-          <div className="surface-card">
-            <div className="px-4 py-3 border-b border-border">
-              <h2 className="text-sm font-semibold">Team Performance</h2>
-            </div>
-            <div className="divide-y divide-border">
-              {scopedUsers.filter(u => u.roleId === '5').slice(0, 6).map(user => {
-                const latestKpi = kpis.find(k => k.userId === user.id && k.periodMonth === 10);
-                return (
-                  <div key={user.id} className="flex items-center px-4 py-3 gap-3">
-                    <Avatar className="w-8 h-8">
-                      <AvatarFallback className="text-xs bg-muted text-muted-foreground">{getInitials(user.fullName)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{user.fullName}</p>
-                      <p className="text-xs text-muted-foreground">{getDepartment(user.departmentId ?? '')?.name}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      {latestKpi ? (
-                        <>
-                          <KPIBadge value={latestKpi.onTimePercentage} suffix="%" />
-                          <span className="font-mono text-xs tabular-nums text-muted-foreground">{latestKpi.tasksCompleted} tasks</span>
-                        </>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">No data</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div className="surface-card">
-            <div className="px-4 py-3 border-b border-border">
-              <h2 className="text-sm font-semibold">My Performance</h2>
-            </div>
-            <div className="p-4 space-y-3">
-              {kpis.filter(k => k.userId === currentUser!.id).sort((a, b) => b.periodMonth - a.periodMonth).map(kpi => (
-                <div key={kpi.id} className="flex items-center justify-between py-2">
-                  <span className="text-sm text-muted-foreground">
-                    {new Date(kpi.periodYear, kpi.periodMonth - 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                  </span>
-                  <div className="flex items-center gap-4">
-                    <KPIBadge value={kpi.onTimePercentage} suffix="%" />
-                    <span className="font-mono text-xs tabular-nums text-muted-foreground">{kpi.tasksCompleted} tasks</span>
-                    <span className="font-mono text-xs tabular-nums text-muted-foreground">★ {kpi.managerRating}</span>
-                  </div>
+        <div className="divide-y divide-border">
+          {scopedTasks.slice(0, 8).map(task => {
+            const assignee = getUser(task.assignedTo);
+            const project = projects.find(p => p.id === task.projectId);
+            return (
+              <div key={task.id} className="data-table-row">
+                <PriorityDot priority={task.priority} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{task.title}</p>
+                  <p className="text-xs text-muted-foreground">{getDepartment(project?.departmentId ?? '')?.name} · {project?.name}</p>
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+                <div className="flex items-center gap-3">
+                  <StatusBadge status={task.status} />
+                  <span className="font-mono text-xs tabular-nums text-muted-foreground whitespace-nowrap">
+                    {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toUpperCase()}
+                  </span>
+                  {assignee && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Avatar className="w-6 h-6">
+                            <AvatarFallback className="text-[10px] bg-muted text-muted-foreground">{getInitials(assignee.fullName)}</AvatarFallback>
+                          </Avatar>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>{assignee.fullName}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

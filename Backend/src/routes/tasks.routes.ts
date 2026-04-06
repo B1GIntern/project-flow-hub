@@ -1,9 +1,12 @@
 import { Router } from 'express';
+import { requireAuth } from '../middleware/auth.js';
 import { getTasks, createTask, updateTask, deleteTask } from '../controllers/tasks.controller.js';
 
 const router = Router();
 
-// All routes are public (no authentication required)
+// Apply authentication middleware to all routes
+router.use(requireAuth);
+
 router.get('/', getTasks);
 router.post('/', createTask);
 router.put('/:id', updateTask);
